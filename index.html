@@ -11,6 +11,18 @@
         import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // ==========================================================
+        // [FIREBASE CONFIG] — ТВОИ ДАННЫЕ УСПЕШНО ИНТЕГРИРОВАНЫ
+        // ==========================================================
+        const myCustomConfig = {
+            apiKey: "AIzaSyCRTw4a_4GsBzxoBICC1PmMB4Ouu0aUyEY",
+            authDomain: "parasiteseo-4110c.firebaseapp.com",
+            projectId: "parasiteseo-4110c",
+            storageBucket: "parasiteseo-4110c.firebasestorage.app",
+            messagingSenderId: "736679966975",
+            appId: "1:736679966975:web:7fd130eda8828d9cbfb4ca"
+        };
+
+        // ==========================================================
         // [ФАЙЛ: KEYWORDS.JS] — Список твоих H1
         // ==========================================================
         let keywords = [
@@ -104,7 +116,7 @@ FAQ SECTION
         ];
 
         // --- ЛОГИКА ---
-        const firebaseConfig = JSON.parse(__firebase_config || "{}");
+        const firebaseConfig = myCustomConfig.apiKey !== "TVOJ_API_KEY" ? myCustomConfig : JSON.parse(__firebase_config || "{}");
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'sophie-engine-v2';
         const apiKey = ""; 
 
@@ -118,7 +130,7 @@ FAQ SECTION
                 const res = await signInAnonymously(auth);
                 userUid = res.user.uid;
                 updateKeywordUI();
-            } catch(e) { console.error("Firebase fail"); }
+            } catch(e) { console.error("Firebase fail. Check if Anonymous Auth is enabled in Console."); }
         }
 
         async function callAI(prompt) {
@@ -191,9 +203,11 @@ FAQ SECTION
 
                     // Storage
                     if (userUid) {
-                        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'articles'), {
-                            h1, content: final, createdAt: serverTimestamp()
-                        });
+                        try {
+                            await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'articles'), {
+                                h1, content: final, createdAt: serverTimestamp()
+                            });
+                        } catch(e) { console.error("Firestore Save Fail:", e); }
                     }
                     downloadTxt(`${h1.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.txt`, final);
                     
