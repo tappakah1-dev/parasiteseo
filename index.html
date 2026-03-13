@@ -81,12 +81,12 @@ Include a 7-step integration workflow. Use reflective tone.
         let environmentApiKey = "";
 
         // List of models to try if the first one fails (404)
+        // Updated with standard Google AI Studio production names
         const geminiModels = [
             "gemini-1.5-flash",
-            "gemini-1.5-flash-latest",
             "gemini-1.5-pro",
-            "gemini-2.0-flash-exp",
-            "gemini-pro"
+            "gemini-2.0-flash",
+            "gemini-1.0-pro"
         ];
 
         async function init() {
