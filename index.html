@@ -11,7 +11,7 @@
         import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // ==========================================================
-        // [FIREBASE CONFIG]
+        // [FIREBASE CONFIGURATION]
         // ==========================================================
         const myCustomConfig = {
             apiKey: "AIzaSyCRTw4a_4GsBzxoBICC1PmMB4Ouu0aUyEY",
@@ -23,7 +23,7 @@
         };
 
         // ==========================================================
-        // [KEYWORDS.JS] — List of H1s
+        // [KEYWORDS.JS] — List of your H1 Titles
         // ==========================================================
         let keywords = [
             "How to Use Advanced Collagen Plus: A Step-by-Step Daily Routine Guide",
@@ -49,14 +49,14 @@
         ];
 
         // ==========================================================
-        // [APIS.JS] — API Endpoints
+        // [APIS.JS] — API Endpoints (Gemini)
         // ==========================================================
         const apiEndpoints = [
             "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent",
         ];
 
         // ==========================================================
-        // [PROMPTS.JS] — Full Sophie Miller Prompt
+        // [PROMPTS.JS] — Persona and Generation Stages
         // ==========================================================
         const promptTemplates = [
             {
@@ -115,7 +115,7 @@ FAQ SECTION
             }
         ];
 
-        // --- ENGINE LOGIC ---
+        // --- CORE ENGINE LOGIC ---
         const firebaseConfig = myCustomConfig;
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'sophie-engine-v2';
         const apiKey = ""; 
@@ -125,6 +125,7 @@ FAQ SECTION
         const db = getFirestore(app);
         let userUid = null;
 
+        // Initialize Firebase and Anonymous Auth
         async function init() {
             try {
                 const res = await signInAnonymously(auth);
@@ -133,6 +134,7 @@ FAQ SECTION
             } catch(e) { console.error("Firebase Auth failed."); }
         }
 
+        // AI call with exponential backoff
         async function callAI(prompt) {
             const endpoint = apiEndpoints[Math.floor(Math.random() * apiEndpoints.length)];
             const url = `${endpoint}?key=${apiKey}`;
@@ -147,45 +149,36 @@ FAQ SECTION
                         })
                     });
                     const data = await response.json();
+                    if (!response.ok) throw new Error(data.error?.message || "API Error");
                     return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
                 } catch (e) {
+                    if (i === 4) throw e;
                     await new Promise(r => setTimeout(r, Math.pow(2, i) * 1000));
                 }
             }
-            throw new Error("API Connection Error");
         }
 
-        function downloadFormatted(filename, htmlContent) {
-            // Create a full HTML document for the download
-            const fullDoc = `
-<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<style>
-    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 40px auto; padding: 20px; }
-    h1, h2, h3 { color: #111; margin-top: 1.5em; }
-    p { margin-bottom: 1em; }
-    ul { margin-bottom: 1em; padding-left: 20px; }
-    li { margin-bottom: 0.5em; }
-    b, strong { font-weight: bold; }
-</style>
-</head>
-<body>
-${htmlContent}
-</body>
-</html>`;
-            const blob = new Blob([fullDoc], { type: 'text/html;charset=utf-8' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = filename;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-        }
+        // Copy HTML to Clipboard
+        window.copyToClipboard = (elementId) => {
+            const text = document.getElementById(elementId).value;
+            const tempInput = document.createElement("textarea");
+            tempInput.value = text;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand("copy");
+            document.body.removeChild(tempInput);
+            
+            const btn = document.querySelector(`[onclick="copyToClipboard('${elementId}')"]`);
+            const originalText = btn.innerText;
+            btn.innerText = "COPIED!";
+            btn.classList.replace('bg-slate-700', 'bg-emerald-600');
+            setTimeout(() => {
+                btn.innerText = originalText;
+                btn.classList.replace('bg-emerald-600', 'bg-slate-700');
+            }, 2000);
+        };
 
+        // Main Automation Process
         window.runAutomation = async () => {
             const count = parseInt(document.getElementById('count').value);
             const pName = document.getElementById('productName').value || "Advanced Collagen Plus";
@@ -202,42 +195,50 @@ ${htmlContent}
 
                 const h1 = keywords.splice(Math.floor(Math.random() * keywords.length), 1)[0];
                 const activePrompt = promptTemplates[0];
+                const taskId = `task-${Date.now()}-${i}`;
                 
                 const card = document.createElement('div');
-                card.className = "bg-slate-800/40 border border-slate-700/50 p-4 rounded-xl mb-4 text-xs font-mono";
+                card.className = "bg-slate-800/40 border border-slate-700/50 p-4 rounded-xl mb-4 text-xs font-mono transition-all";
                 log.prepend(card);
 
                 try {
                     card.innerHTML = `<div class="text-white font-bold mb-2 uppercase tracking-widest text-[10px] text-indigo-400">Task ${i+1}: ${h1}</div>`;
                     
-                    card.innerHTML += `<div class="flex justify-between"><span>Generating Narrative...</span><span id="s1-${i}">⏳</span></div>`;
+                    card.innerHTML += `<div class="flex justify-between"><span>Generating Content...</span><span id="s1-${i}">⏳</span></div>`;
                     const s1 = await callAI(activePrompt.stage1(h1, pName));
                     document.getElementById(`s1-${i}`).innerText = "✅";
 
-                    card.innerHTML += `<div class="flex justify-between"><span>Formatting Bold Elements...</span><span id="s2-${i}">⏳</span></div>`;
+                    card.innerHTML += `<div class="flex justify-between"><span>Bold Formatting...</span><span id="s2-${i}">⏳</span></div>`;
                     const s2 = await callAI(activePrompt.stage2(s1));
                     document.getElementById(`s2-${i}`).innerText = "✅";
 
-                    card.innerHTML += `<div class="flex justify-between"><span>Converting to HTML Guide...</span><span id="s3-${i}">⏳</span></div>`;
+                    card.innerHTML += `<div class="flex justify-between"><span>HTML Conversion...</span><span id="s3-${i}">⏳</span></div>`;
                     const finalHtml = await callAI(activePrompt.stage3(s2));
                     document.getElementById(`s3-${i}`).innerText = "✅";
 
-                    // Save to DB
+                    // Save to Firebase Firestore using strict path rules
                     if (userUid) {
                         try {
                             await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'articles'), {
                                 h1, content: finalHtml, createdAt: serverTimestamp()
                             });
-                        } catch(e) { console.error("Database save failed"); }
+                        } catch(e) { console.error("Database save failed", e); }
                     }
 
-                    // Download as HTML
-                    downloadFormatted(`${h1.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.html`, finalHtml);
-                    
-                    card.innerHTML += `<div class="mt-2 text-emerald-400 font-bold tracking-tighter uppercase italic">>> SUCCESS: HTML_FILE_SAVED</div>`;
+                    // Display result with copy option
+                    card.innerHTML += `
+                        <div class="mt-4 space-y-2">
+                            <textarea id="${taskId}" class="hidden">${finalHtml}</textarea>
+                            <button onclick="copyToClipboard('${taskId}')" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-2 rounded-lg transition-colors flex items-center justify-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+                                COPY HTML TO CLIPBOARD
+                            </button>
+                            <div class="text-[9px] text-emerald-500 font-bold uppercase tracking-tighter italic text-center">Saved to Cloud Storage</div>
+                        </div>
+                    `;
                     updateKeywordUI();
                 } catch (e) {
-                    card.innerHTML += `<div class="text-red-500 mt-2">!! CRITICAL_ERROR: ${e.message}</div>`;
+                    card.innerHTML += `<div class="text-red-500 mt-2 font-bold uppercase">!! ERROR: ${e.message}</div>`;
                 }
             }
             btn.disabled = false;
@@ -261,13 +262,13 @@ ${htmlContent}
 <body class="bg-[#020617] text-slate-400 min-h-screen p-6">
 
     <div class="max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
-        <!-- Controls -->
+        <!-- Control Panel -->
         <div class="lg:col-span-5 space-y-6">
             <div class="bg-slate-900 border border-slate-800 p-8 rounded-[2.5rem] shadow-2xl relative overflow-hidden">
                 <div class="absolute -top-10 -left-10 w-40 h-40 bg-indigo-500/10 blur-3xl rounded-full"></div>
                 
-                <h1 class="text-white text-3xl font-black tracking-tighter mb-8 italic">
-                    SOPHIE <span class="text-indigo-500">SYSTEM</span>
+                <h1 class="text-white text-3xl font-black tracking-tighter mb-8 italic uppercase">
+                    Sophie <span class="text-indigo-500 tracking-normal">Miller</span>
                 </h1>
 
                 <div class="space-y-4 relative z-10">
@@ -282,7 +283,7 @@ ${htmlContent}
                     </div>
 
                     <div class="flex justify-between items-center py-4 border-y border-slate-800/30">
-                        <span class="text-xs font-medium text-slate-500">Remaining in Queue:</span>
+                        <span class="text-xs font-medium text-slate-500 uppercase tracking-wider">Remaining Queue:</span>
                         <span id="kwTotal" class="text-2xl font-black text-white mono tracking-tighter">0</span>
                     </div>
 
@@ -295,28 +296,28 @@ ${htmlContent}
             <div class="p-6 bg-slate-900/50 border border-slate-800 rounded-2xl">
                 <div class="flex items-center gap-2 mb-3">
                     <div class="w-1.5 h-1.5 rounded-full bg-indigo-500"></div>
-                    <h4 class="text-white text-[10px] font-bold uppercase tracking-widest">Persona: Sophie Miller</h4>
+                    <h4 class="text-white text-[10px] font-bold uppercase tracking-widest italic">System Mode: Cloud Only</h4>
                 </div>
-                <p class="text-[11px] leading-relaxed text-slate-500">
-                    Grounded 40yo wellness guide. Output is formatted as a clean HTML file for easy copy-pasting with preserved bolding and lists.
+                <p class="text-[11px] leading-relaxed text-slate-500 font-medium">
+                    Content is saved to Firebase Firestore. No local downloads are triggered. Use the "Copy" button for manual transfer.
                 </p>
             </div>
         </div>
 
-        <!-- Logs -->
+        <!-- Progress Feed -->
         <div class="lg:col-span-7">
             <div class="flex items-center justify-between mb-4 px-2">
                 <div class="flex items-center gap-2">
                     <div class="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></div>
-                    <h2 class="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Live Status Feed</h2>
+                    <h2 class="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Production Pipeline Feed</h2>
                 </div>
-                <span class="text-[9px] mono text-slate-600">V2.1.0_EN</span>
+                <span class="text-[9px] mono text-slate-600">V2.2.0_CLOUD</span>
             </div>
             
             <div id="log" class="h-[650px] overflow-y-auto custom-scroll pr-2 space-y-4">
-                <div class="flex flex-col items-center justify-center h-full text-slate-800 select-none">
-                    <div class="w-16 h-16 border-4 border-slate-900 border-t-indigo-500 rounded-full animate-spin mb-4"></div>
-                    <span class="mono text-[10px] uppercase tracking-widest">Idle - Ready to begin</span>
+                <div class="flex flex-col items-center justify-center h-full text-slate-800 select-none border-2 border-dashed border-slate-900 rounded-3xl">
+                    <div class="w-12 h-12 border-2 border-slate-900 border-t-indigo-500 rounded-full animate-spin mb-4"></div>
+                    <span class="mono text-[10px] uppercase tracking-[0.2em]">Awaiting command...</span>
                 </div>
             </div>
         </div>
