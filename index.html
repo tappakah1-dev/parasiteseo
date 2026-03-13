@@ -127,19 +127,22 @@ FAQ SECTION
 
         // Initialize Firebase and Fetch Vercel Environment Key
         async function init() {
-            // Attempt to fetch the key from your Vercel API route
-            // You should create a file: /api/key.js in your project
+            // Fetch the key from your Vercel API route (/api/key.js)
             try {
                 const response = await fetch('/api/key');
                 if (response.ok) {
                     const data = await response.json();
                     if (data.key) {
                         environmentApiKey = data.key;
-                        showStatus("Environment API Key Loaded", "emerald");
+                        showStatus("Vercel Environment API Key Loaded", "emerald");
+                    } else {
+                        showStatus("API Key not found in Environment Variables", "yellow");
                     }
+                } else {
+                    showStatus("API Route /api/key not found (404). Create api/key.js", "red");
                 }
             } catch (e) {
-                console.warn("Could not fetch environment key. Falling back to manual entry if needed.");
+                showStatus("Error fetching Environment Key", "red");
             }
 
             try {
@@ -148,7 +151,8 @@ FAQ SECTION
                 updateKeywordUI();
             } catch(e) { 
                 console.error("Firebase Auth failed.");
-                showStatus("Firebase connection failed.", "red");
+                const statusDiv = document.getElementById('engineStatus');
+                statusDiv.innerText += " | Firebase Auth failed.";
             }
         }
 
@@ -160,15 +164,13 @@ FAQ SECTION
 
         // AI call with exponential backoff
         async function callAI(prompt) {
-            // Check order: 1. Input field 2. Fetched Env Key
-            const activeKey = document.getElementById('userApiKey')?.value || environmentApiKey;
-            
-            if (!activeKey) {
-                throw new Error("Missing API Key. Ensure GOOGLE_API is set in Vercel and /api/key exists, or enter it below.");
+            // Strictly uses the Environment Variable fetched during init
+            if (!environmentApiKey) {
+                throw new Error("Missing API Key. Ensure GOOGLE_API is set in Vercel and /api/key.js is deployed.");
             }
 
             const endpoint = apiEndpoints[Math.floor(Math.random() * apiEndpoints.length)];
-            const url = `${endpoint}?key=${activeKey}`;
+            const url = `${endpoint}?key=${environmentApiKey}`;
 
             for (let i = 0; i < 5; i++) {
                 try {
@@ -220,6 +222,10 @@ FAQ SECTION
             const btn = document.getElementById('btn');
 
             if (!count || count <= 0) return;
+            if (!environmentApiKey) {
+                alert("Cannot start: API Key from Vercel environment not loaded.");
+                return;
+            }
 
             btn.disabled = true;
             log.innerHTML = `<div class="text-indigo-400 animate-pulse font-mono text-sm mb-4">>> SOPHIE ENGINE ACTIVATED...</div>`;
@@ -304,7 +310,7 @@ FAQ SECTION
                 <h1 class="text-white text-3xl font-black tracking-tighter mb-2 italic uppercase">
                     Sophie <span class="text-indigo-500 tracking-normal">Miller</span>
                 </h1>
-                <div id="engineStatus" class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-600 mb-8">System: Initializing</div>
+                <div id="engineStatus" class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-600 mb-8 italic tracking-tighter">System: Syncing with Vercel...</div>
 
                 <div class="space-y-4 relative z-10">
                     <div class="bg-slate-950 p-5 rounded-2xl border border-slate-800 focus-within:border-indigo-500/50 transition-all">
@@ -315,12 +321,6 @@ FAQ SECTION
                     <div class="bg-slate-950 p-5 rounded-2xl border border-slate-800 focus-within:border-indigo-500/50 transition-all">
                         <label class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 mb-2 block">Target Product Name</label>
                         <input type="text" id="productName" value="Advanced Collagen Plus" class="bg-transparent text-lg font-bold text-indigo-400 w-full outline-none">
-                    </div>
-
-                    <!-- Hidden or explicit API key input as a backup -->
-                    <div class="bg-slate-950 p-5 rounded-2xl border border-slate-800 focus-within:border-indigo-500/50 transition-all">
-                        <label class="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 mb-2 block">Manual API Key (Backup)</label>
-                        <input type="password" id="userApiKey" placeholder="Automatically uses Vercel ENV" class="bg-transparent text-xs font-mono text-slate-400 w-full outline-none">
                     </div>
 
                     <div class="flex justify-between items-center py-4 border-y border-slate-800/30">
@@ -340,7 +340,7 @@ FAQ SECTION
                     <h4 class="text-white text-[10px] font-bold uppercase tracking-widest italic text-indigo-400">Environment Sync</h4>
                 </div>
                 <p class="text-[11px] leading-relaxed text-slate-500 font-medium">
-                    This build is configured to fetch your <code class="text-indigo-300">GOOGLE_API</code> from your Vercel deployment's environment variables via the <code class="text-indigo-300">/api/key</code> endpoint.
+                    Automated Secure Link: Fetching <code class="text-indigo-300">GOOGLE_API</code> from your Vercel Environment Variables. Manual input has been removed for security.
                 </p>
             </div>
         </div>
@@ -352,7 +352,7 @@ FAQ SECTION
                     <div class="w-2 h-2 rounded-full bg-indigo-500 animate-pulse"></div>
                     <h2 class="text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">Production Pipeline Feed</h2>
                 </div>
-                <span class="text-[9px] mono text-slate-600 uppercase">V2.5.0_ENV_AUTH</span>
+                <span class="text-[9px] mono text-slate-600 uppercase">V2.6.0_ENV_STRICT</span>
             </div>
             
             <div id="log" class="h-[650px] overflow-y-auto custom-scroll pr-2 space-y-4">
