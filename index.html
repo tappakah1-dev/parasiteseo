@@ -80,17 +80,16 @@ Include a 7-step integration workflow. Use reflective tone.
         let userUid = null;
         let environmentApiKey = "";
 
-        // Expanded list of models including stable v1 aliases
+        // Most reliable production model names
         const geminiModels = [
             "gemini-1.5-flash",
-            "gemini-1.5-flash-8b",
             "gemini-1.5-pro",
-            "gemini-1.0-pro",
-            "gemini-pro"
+            "gemini-1.0-pro"
         ];
 
         async function init() {
             try {
+                // Fetch key with a relative path for Vercel
                 const response = await fetch('/api/key');
                 if (response.ok) {
                     const data = await response.json();
@@ -101,10 +100,10 @@ Include a 7-step integration workflow. Use reflective tone.
                         setIndicator('api-status', 'Empty Key', 'text-yellow-500');
                     }
                 } else {
-                    setIndicator('api-status', 'Route Missing (404)', 'text-red-500');
+                    setIndicator('api-status', `Error ${response.status}`, 'text-red-500');
                 }
             } catch (e) {
-                setIndicator('api-status', 'Fetch Error', 'text-red-500');
+                setIndicator('api-status', 'Network Error', 'text-red-500');
             }
 
             onAuthStateChanged(auth, (user) => {
@@ -126,13 +125,12 @@ Include a 7-step integration workflow. Use reflective tone.
             }
         }
 
-        // --- NEW: Diagnostic tool to check allowed models ---
         window.checkAvailableModels = async () => {
+            const log = document.getElementById('log');
             if (!environmentApiKey) {
-                alert("API Key not loaded. Cannot check models.");
+                log.innerHTML = `<div class="text-red-400 mono text-[10px]">API KEY NOT LOADED. RE-DEPLOY VERCEL.</div>`;
                 return;
             }
-            const log = document.getElementById('log');
             log.innerHTML = `<div class="text-white mono text-[10px] mb-4">>> DIAGNOSING API PERMISSIONS...</div>`;
             
             try {
@@ -146,44 +144,39 @@ Include a 7-step integration workflow. Use reflective tone.
                         <strong>ALLOWED MODELS:</strong><br>${names.join('<br>')}
                     </div>`;
                 } else {
-                    log.innerHTML += `<div class="text-red-400 text-[10px] mono">Could not list models. Error: ${JSON.stringify(data)}</div>`;
+                    log.innerHTML += `<div class="text-red-400 text-[10px] mono">Error: ${data.error?.message || 'Unknown API Error'}</div>`;
                 }
             } catch (e) {
-                log.innerHTML += `<div class="text-red-400 text-[10px] mono italic">Network error during diagnosis. Check Vercel logs.</div>`;
+                log.innerHTML += `<div class="text-red-400 text-[10px] mono italic">Fetch failed. Check browser console.</div>`;
             }
         };
 
         async function callAI(prompt) {
-            if (!environmentApiKey) throw new Error("API Key not loaded from Vercel.");
+            if (!environmentApiKey) throw new Error("API Key not loaded. Ensure Vercel GOOGLE_API is set.");
 
             let lastError = "";
 
             for (const model of geminiModels) {
-                // Try both v1beta and v1 endpoints
-                const endpoints = [
-                    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${environmentApiKey}`,
-                    `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${environmentApiKey}`
-                ];
+                // We use v1beta as it is the most consistent for experimental/preview features
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${environmentApiKey}`;
 
-                for (const url of endpoints) {
-                    try {
-                        const response = await fetch(url, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                contents: [{ parts: [{ text: prompt }] }]
-                            })
-                        });
-                        
-                        const data = await response.json();
-                        if (response.ok) return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-                        
-                        if (response.status === 404) continue; // Try next endpoint or model
-                        throw new Error(data.error?.message || "API Error");
-                    } catch (e) {
-                        lastError = e.message;
-                        continue;
-                    }
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{ parts: [{ text: prompt }] }]
+                        })
+                    });
+                    
+                    const data = await response.json();
+                    if (response.ok) return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+                    
+                    if (response.status === 404) continue; 
+                    throw new Error(data.error?.message || `Status ${response.status}`);
+                } catch (e) {
+                    lastError = e.message;
+                    continue;
                 }
             }
             throw new Error(`All models failed. Last error: ${lastError}`);
@@ -288,11 +281,11 @@ Include a 7-step integration workflow. Use reflective tone.
                 </div>
 
                 <div class="space-y-4">
-                    <div class="bg-slate-950 p-4 rounded-xl border border-slate-800">
+                    <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 focus-within:border-indigo-500/50">
                         <label class="text-[9px] font-bold text-slate-500 uppercase block mb-1">Batch Count</label>
                         <input type="number" id="count" value="1" class="bg-transparent text-2xl font-black text-white w-full outline-none">
                     </div>
-                    <div class="bg-slate-950 p-4 rounded-xl border border-slate-800">
+                    <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 focus-within:border-indigo-500/50">
                         <label class="text-[9px] font-bold text-slate-500 uppercase block mb-1">Product Name</label>
                         <input type="text" id="productName" value="Advanced Collagen Plus" class="bg-transparent text-base font-bold text-indigo-400 w-full outline-none">
                     </div>
@@ -300,9 +293,8 @@ Include a 7-step integration workflow. Use reflective tone.
                         <span>Keywords Left:</span>
                         <span id="kwTotal" class="text-white font-black mono">0</span>
                     </div>
-                    <button id="btn" onclick="runAutomation()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black py-5 rounded-xl uppercase tracking-widest text-xs mb-2">Start Generation</button>
+                    <button id="btn" onclick="runAutomation()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-5 rounded-xl uppercase tracking-widest text-xs mb-2">Start Generation</button>
                     
-                    <!-- New Diagnostic Button -->
                     <button onclick="checkAvailableModels()" class="w-full border border-slate-700 hover:bg-slate-800 text-slate-500 font-bold py-2 rounded-xl uppercase tracking-widest text-[9px] transition-colors">Check Allowed Models</button>
                 </div>
             </div>
