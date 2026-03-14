@@ -1,159 +1,371 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sophie Miller Content Engine</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sophie Miller Content Engine</title>
 
-        const myCustomConfig = {
-            apiKey: "AIzaSyCRTw4a_4GsBzxoBICC1PmMB4Ouu0aUyEY",
-            authDomain: "parasiteseo-4110c.firebaseapp.com",
-            projectId: "parasiteseo-4110c",
-            storageBucket: "parasiteseo-4110c.firebasestorage.app",
-            messagingSenderId: "736679966975",
-            appId: "1:736679966975:web:7fd130eda8828d9cbfb4ca"
-        };
+<script src="https://cdn.tailwindcss.com"></script>
 
-        let keywords = [
-            "How to Use Advanced Collagen Plus: A Step-by-Step Daily Routine Guide",
-            "Step-by-Step: Incorporating Collagen into Your 2026 Skincare Routine",
-            "The Morning Glow Process: How to Properly Mix Advanced Collagen Plus",
-            "How to Maximize Collagen Absorption: A Visual Walkthrough",
-            "A Beginner’s Guide to Starting a Collagen Supplement Routine (Steps Included)",
-            "How to Choose the Right Collagen: Comparing Advanced Collagen Plus to the Rest",
-            "Step-by-Step Guide: Evaluating Collagen Supplements for Quality and Purity",
-            "How to Spot \"Fake\" Collagen: A Checklist for 2026 Shoppers",
-            "Process: Transitioning from Standard Protein to Advanced Collagen Plus",
-            "How to Calculate Your Daily Collagen Needs (Step-by-Step Formula)",
-            "How to Track Your Collagen Results: A 90-Day Skin & Hair Log",
-            "Step-by-Step: What to Expect During Your First Month of Collagen",
-            "How to Optimize Your Diet for Collagen Production: A Weekly Checklist",
-            "The \"Anti-Aging\" Workflow: Pairing Collagen with Your Morning Skincare",
-            "How to Fix Brittle Nails: A Step-by-Step Recovery Guide Using Collagen",
-            "How to Make Collagen Coffee: The Perfect Advanced Collagen Plus Recipe",
-            "Step-by-Step: Creating a Collagen-Infused Pre-Workout Routine",
-            "How to Store and Preserve Collagen Potency: A Quick Visual Guide",
-            "The Travel Guide: How to Maintain Your Collagen Routine on the Go",
-            "Step-by-Step: Adding Collagen to Your Nighttime Wellness Ritual"
-        ];
+<script type="module">
 
-        const promptTemplates = [
-            {
-                name: "Sophie Miller (Wellness Guide)",
-                stage1: (h1, productName) => `ROLE: Sophie Miller (40yo wellness guide). VOICE: Calm, human. GOAL: 1500 word guide. H1: ${h1}. PRODUCT: ${productName} (bold once in para 2).`,
-                stage2: (text) => `Format with **bold** headers and lists. Text: ${text}`,
-                stage3: (text) => `Convert to clean HTML (h1, h2, p, ul, li, b). Output ONLY HTML. Text: ${text}`
-            }
-        ];
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        const app = initializeApp(myCustomConfig);
-        const auth = getAuth(app);
-        const db = getFirestore(app);
-        let userUid = null;
-        let environmentApiKey = "";
+const firebaseConfig = {
+apiKey: "AIzaSyCRTw4a_4GsBzxoBICC1PmMB4Ouu0aUyEY",
+authDomain: "parasiteseo-4110c.firebaseapp.com",
+projectId: "parasiteseo-4110c",
+storageBucket: "parasiteseo-4110c.firebasestorage.app",
+messagingSenderId: "736679966975",
+appId: "1:736679966975:web:7fd130eda8828d9cbfb4ca"
+};
 
-        const geminiModels = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"];
+let keywords = [
+"How to Use Advanced Collagen Plus: A Step-by-Step Daily Routine Guide",
+"Step-by-Step: Incorporating Collagen into Your 2026 Skincare Routine",
+"The Morning Glow Process: How to Properly Mix Advanced Collagen Plus",
+"How to Maximize Collagen Absorption: A Visual Walkthrough",
+"A Beginner’s Guide to Starting a Collagen Supplement Routine",
+"How to Choose the Right Collagen: Comparing Advanced Collagen Plus",
+"How to Spot Fake Collagen Supplements in 2026",
+"How to Calculate Your Daily Collagen Needs",
+"How to Track Your Collagen Results: 90 Day Guide",
+"How to Optimize Your Diet for Collagen Production"
+];
 
-        async function init() {
-            try {
-                const response = await fetch('/api/key');
-                if (response.ok) {
-                    const data = await response.json();
-                    environmentApiKey = data.key;
-                    setIndicator('api-status', 'LOADED', 'text-emerald-500');
-                } else { setIndicator('api-status', 'KEY_ERROR', 'text-red-500'); }
-            } catch (e) { setIndicator('api-status', 'FETCH_FAIL', 'text-red-500'); }
+const promptTemplates = {
+stage1:(h1,product)=>`
+Write a 1500 word article.
 
-            onAuthStateChanged(auth, (user) => {
-                if (user) { userUid = user.uid; setIndicator('auth-status', 'AUTHENTICATED', 'text-emerald-500'); }
-                else { signInAnonymously(auth); }
-            });
-            updateKeywordUI();
-        }
+Title: ${h1}
 
-        function setIndicator(id, text, colorClass) {
-            const el = document.getElementById(id);
-            if (el) { el.innerText = text; el.className = `text-[10px] font-bold ${colorClass}`; }
-        }
+Voice: Sophie Miller, calm wellness guide.
+Product: ${product}
 
-        async function callAI(prompt) {
-            if (!environmentApiKey) throw new Error("API Key missing.");
-            let lastError = "";
-            for (const model of geminiModels) {
-                // CHANGED TO v1 ENDPOINT (more stable than v1beta)
-                const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${environmentApiKey}`;
-                try {
-                    const response = await fetch(url, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-                    });
-                    const data = await response.json();
-                    if (response.ok) return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-                    if (response.status !== 404) throw new Error(data.error?.message || "API Error");
-                } catch (e) { lastError = e.message; continue; }
-            }
-            throw new Error(`Connection failed: ${lastError}`);
-        }
+Create a helpful guide explaining the process clearly.
+`,
 
-        window.copyToClipboard = (id) => {
-            const el = document.getElementById(id); el.select(); document.execCommand('copy');
-            const btn = document.querySelector(`[onclick*="${id}"]`); btn.innerText = "COPIED!";
-            setTimeout(() => btn.innerText = "COPY HTML", 2000);
-        };
+stage2:(text)=>`
+Format this text with sections and lists.
 
-        window.runAutomation = async () => {
-            const count = parseInt(document.getElementById('count').value);
-            const btn = document.getElementById('btn');
-            const log = document.getElementById('log');
-            if (!count || !environmentApiKey) return;
-            btn.disabled = true;
-            log.innerHTML = `<div class="text-indigo-400 animate-pulse text-[10px] mb-4">>> STARTING ENGINE...</div>`;
-            for (let i = 0; i < count; i++) {
-                if (keywords.length === 0) break;
-                const h1 = keywords.splice(Math.floor(Math.random() * keywords.length), 1)[0];
-                const taskId = `task-${Date.now()}-${i}`;
-                const card = document.createElement('div');
-                card.className = "bg-slate-800/40 border border-slate-700 p-4 rounded-xl mb-4 text-xs font-mono";
-                log.prepend(card);
-                try {
-                    card.innerHTML = `<div class="text-white mb-2 uppercase text-indigo-400 font-bold">${h1}</div>`;
-                    const s1 = await callAI(promptTemplates[0].stage1(h1, "Advanced Collagen Plus"));
-                    const finalHtml = await callAI(promptTemplates[0].stage3(s1));
-                    if (userUid) { await addDoc(collection(db, 'artifacts', 'sophie-engine', 'public', 'data', 'articles'), { h1, content: finalHtml, createdAt: serverTimestamp() }); }
-                    card.innerHTML += `<div class="mt-4"><textarea id="${taskId}" class="hidden">${finalHtml}</textarea><button onclick="copyToClipboard('${taskId}')" class="w-full bg-indigo-600 py-2 rounded font-bold">COPY HTML</button></div>`;
-                    updateKeywordUI();
-                } catch (e) { card.innerHTML += `<div class="text-red-500 mt-2">!! ERROR: ${e.message}</div>`; }
-            }
-            btn.disabled = false;
-        };
+Use headings and make it easy to read.
 
-        function updateKeywordUI() { document.getElementById('kwTotal').innerText = keywords.length; }
-        window.onload = init;
-    </script>
+Text:
+${text}
+`,
+
+stage3:(text)=>`
+Convert this article to CLEAN HTML.
+
+Use only:
+h1
+h2
+p
+ul
+li
+b
+
+Return ONLY HTML.
+
+Text:
+${text}
+`
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+let userUid=null;
+let apiKey="";
+
+const geminiModels=[
+"gemini-1.5-flash-latest",
+"gemini-1.5-pro-latest"
+];
+
+async function init(){
+
+try{
+
+const r=await fetch("/api/key");
+
+if(r.ok){
+const data=await r.json();
+apiKey=data.key;
+setIndicator("api-status","LOADED","text-emerald-500");
+}else{
+setIndicator("api-status","KEY_ERROR","text-red-500");
+}
+
+}catch(e){
+
+setIndicator("api-status","FETCH_FAIL","text-red-500");
+
+}
+
+onAuthStateChanged(auth,(user)=>{
+
+if(user){
+userUid=user.uid;
+setIndicator("auth-status","AUTHENTICATED","text-emerald-500");
+}else{
+signInAnonymously(auth);
+}
+
+});
+
+updateKeywordUI();
+
+}
+
+function setIndicator(id,text,color){
+
+const el=document.getElementById(id);
+
+if(el){
+el.innerText=text;
+el.className=`text-[10px] font-bold ${color}`;
+}
+
+}
+
+async function callAI(prompt){
+
+if(!apiKey) throw new Error("API key missing");
+
+let lastError="";
+
+for(const model of geminiModels){
+
+const url=`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+try{
+
+const response=await fetch(url,{
+method:"POST",
+headers:{
+"Content-Type":"application/json"
+},
+body:JSON.stringify({
+contents:[
+{
+parts:[{text:prompt}]
+}
+],
+generationConfig:{
+temperature:0.7,
+maxOutputTokens:4096
+}
+})
+});
+
+const data=await response.json();
+
+if(response.ok){
+
+return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+
+}
+
+if(response.status!==404){
+
+throw new Error(data.error?.message || "API error");
+
+}
+
+}catch(e){
+
+lastError=e.message;
+
+}
+
+}
+
+throw new Error("AI failed: "+lastError);
+
+}
+
+window.copyToClipboard=async(id)=>{
+
+const text=document.getElementById(id).value;
+
+await navigator.clipboard.writeText(text);
+
+};
+
+window.runAutomation=async()=>{
+
+const count=parseInt(document.getElementById("count").value);
+
+const btn=document.getElementById("btn");
+
+const log=document.getElementById("log");
+
+if(!count || !apiKey) return;
+
+btn.disabled=true;
+
+log.innerHTML=`<div class="text-indigo-400 animate-pulse text-[10px] mb-4">Starting engine...</div>`;
+
+for(let i=0;i<count;i++){
+
+if(keywords.length===0) break;
+
+const h1=keywords.splice(Math.floor(Math.random()*keywords.length),1)[0];
+
+const taskId=`task-${Date.now()}-${i}`;
+
+const card=document.createElement("div");
+
+card.className="bg-slate-800/40 border border-slate-700 p-4 rounded-xl mb-4 text-xs font-mono";
+
+log.prepend(card);
+
+try{
+
+card.innerHTML=`<div class="text-white mb-2 uppercase text-indigo-400 font-bold">${h1}</div>`;
+
+const s1=await callAI(promptTemplates.stage1(h1,"Advanced Collagen Plus"));
+
+const s2=await callAI(promptTemplates.stage2(s1));
+
+const finalHtml=await callAI(promptTemplates.stage3(s2));
+
+if(userUid){
+
+await addDoc(
+
+collection(db,"artifacts","sophie-engine","public","data","articles"),
+
+{
+h1,
+content:finalHtml,
+createdAt:serverTimestamp()
+}
+
+);
+
+}
+
+card.innerHTML+=`
+
+<div class="mt-4">
+
+<textarea id="${taskId}" class="hidden">${finalHtml}</textarea>
+
+<button onclick="copyToClipboard('${taskId}')"
+
+class="w-full bg-indigo-600 py-2 rounded font-bold">
+
+COPY HTML
+
+</button>
+
+</div>
+
+`;
+
+updateKeywordUI();
+
+}catch(e){
+
+card.innerHTML+=`<div class="text-red-500 mt-2">${e.message}</div>`;
+
+}
+
+}
+
+btn.disabled=false;
+
+};
+
+function updateKeywordUI(){
+
+document.getElementById("kwTotal").innerText=keywords.length;
+
+}
+
+window.onload=init;
+
+</script>
+
 </head>
+
 <body class="bg-[#020617] text-slate-400 min-h-screen p-6 font-sans">
-    <div class="max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
-        <div class="lg:col-span-5 space-y-6">
-            <div class="bg-slate-900 border border-slate-800 p-8 rounded-[2rem] shadow-2xl">
-                <h1 class="text-white text-3xl font-black mb-6 italic uppercase tracking-tighter">Sophie <span class="text-indigo-500 tracking-normal">Miller</span></h1>
-                <div class="flex flex-col gap-1 mb-6">
-                    <div class="flex justify-between bg-black/40 px-3 py-1 rounded border border-slate-800 text-[9px] font-bold"><span>VERCEL API:</span><span id="api-status">...</span></div>
-                    <div class="flex justify-between bg-black/40 px-3 py-1 rounded border border-slate-800 text-[9px] font-bold"><span>AUTH:</span><span id="auth-status">...</span></div>
-                </div>
-                <div class="space-y-4">
-                    <div class="bg-slate-950 p-4 rounded-xl border border-slate-800"><label class="text-[9px] uppercase block mb-1">Batch Count</label><input type="number" id="count" value="1" class="bg-transparent text-2xl font-black text-white outline-none"></div>
-                    <div class="flex justify-between py-2 text-[10px]"><span>Keywords Left:</span><span id="kwTotal" class="text-white font-black">0</span></div>
-                    <button id="btn" onclick="runAutomation()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-5 rounded-xl uppercase text-xs">Start Generation</button>
-                </div>
-            </div>
-        </div>
-        <div id="log" class="lg:col-span-7 h-[700px] overflow-y-auto pr-2 custom-scroll space-y-4"></div>
-    </div>
+
+<div class="max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
+
+<div class="lg:col-span-5 space-y-6">
+
+<div class="bg-slate-900 border border-slate-800 p-8 rounded-[2rem] shadow-2xl">
+
+<h1 class="text-white text-3xl font-black mb-6 italic uppercase tracking-tighter">
+
+Sophie <span class="text-indigo-500">Miller</span>
+
+</h1>
+
+<div class="flex flex-col gap-1 mb-6">
+
+<div class="flex justify-between bg-black/40 px-3 py-1 rounded border border-slate-800 text-[9px] font-bold">
+
+<span>VERCEL API:</span>
+
+<span id="api-status">...</span>
+
+</div>
+
+<div class="flex justify-between bg-black/40 px-3 py-1 rounded border border-slate-800 text-[9px] font-bold">
+
+<span>AUTH:</span>
+
+<span id="auth-status">...</span>
+
+</div>
+
+</div>
+
+<div class="space-y-4">
+
+<div class="bg-slate-950 p-4 rounded-xl border border-slate-800">
+
+<label class="text-[9px] uppercase block mb-1">Batch Count</label>
+
+<input type="number" id="count" value="1"
+
+class="bg-transparent text-2xl font-black text-white outline-none">
+
+</div>
+
+<div class="flex justify-between py-2 text-[10px]">
+
+<span>Keywords Left:</span>
+
+<span id="kwTotal" class="text-white font-black">0</span>
+
+</div>
+
+<button id="btn" onclick="runAutomation()"
+
+class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-5 rounded-xl uppercase text-xs">
+
+Start Generation
+
+</button>
+
+</div>
+
+</div>
+
+</div>
+
+<div id="log" class="lg:col-span-7 h-[700px] overflow-y-auto pr-2 space-y-4"></div>
+
+</div>
+
 </body>
+
 </html>
