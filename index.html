@@ -80,17 +80,16 @@ Include a 7-step integration workflow. Use reflective tone.
         let userUid = null;
         let environmentApiKey = "";
 
-        // List of models to try if the first one fails (404)
-        // Updated with standard Google AI Studio production names
+        // Expanded list of models including stable v1 aliases
         const geminiModels = [
             "gemini-1.5-flash",
+            "gemini-1.5-flash-8b",
             "gemini-1.5-pro",
-            "gemini-2.0-flash",
-            "gemini-1.0-pro"
+            "gemini-1.0-pro",
+            "gemini-pro"
         ];
 
         async function init() {
-            // Fetch the key from Vercel API Route
             try {
                 const response = await fetch('/api/key');
                 if (response.ok) {
@@ -127,16 +126,46 @@ Include a 7-step integration workflow. Use reflective tone.
             }
         }
 
+        // --- NEW: Diagnostic tool to check allowed models ---
+        window.checkAvailableModels = async () => {
+            if (!environmentApiKey) {
+                alert("API Key not loaded. Cannot check models.");
+                return;
+            }
+            const log = document.getElementById('log');
+            log.innerHTML = `<div class="text-white mono text-[10px] mb-4">>> DIAGNOSING API PERMISSIONS...</div>`;
+            
+            try {
+                const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${environmentApiKey}`;
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (data.models) {
+                    const names = data.models.map(m => m.name.replace('models/', ''));
+                    log.innerHTML += `<div class="p-3 bg-emerald-900/20 border border-emerald-500/30 rounded text-emerald-400 text-[10px] mono mb-4">
+                        <strong>ALLOWED MODELS:</strong><br>${names.join('<br>')}
+                    </div>`;
+                } else {
+                    log.innerHTML += `<div class="text-red-400 text-[10px] mono">Could not list models. Error: ${JSON.stringify(data)}</div>`;
+                }
+            } catch (e) {
+                log.innerHTML += `<div class="text-red-400 text-[10px] mono italic">Network error during diagnosis. Check Vercel logs.</div>`;
+            }
+        };
+
         async function callAI(prompt) {
             if (!environmentApiKey) throw new Error("API Key not loaded from Vercel.");
 
             let lastError = "";
 
-            // Loop through model variants to find one that works
             for (const model of geminiModels) {
-                const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${environmentApiKey}`;
+                // Try both v1beta and v1 endpoints
+                const endpoints = [
+                    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${environmentApiKey}`,
+                    `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${environmentApiKey}`
+                ];
 
-                for (let i = 0; i < 2; i++) { // Retry twice per model
+                for (const url of endpoints) {
                     try {
                         const response = await fetch(url, {
                             method: 'POST',
@@ -147,27 +176,17 @@ Include a 7-step integration workflow. Use reflective tone.
                         });
                         
                         const data = await response.json();
-
-                        if (response.ok) {
-                            return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-                        }
+                        if (response.ok) return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
                         
-                        // If 404, the model doesn't exist for this key, break inner loop to try next model
-                        if (response.status === 404) {
-                            console.warn(`Model ${model} not found, trying next...`);
-                            break; 
-                        }
-
+                        if (response.status === 404) continue; // Try next endpoint or model
                         throw new Error(data.error?.message || "API Error");
                     } catch (e) {
                         lastError = e.message;
-                        if (i === 1) break; // Move to next model after 2 tries
-                        await new Promise(r => setTimeout(r, 1000));
+                        continue;
                     }
                 }
             }
-            
-            throw new Error(`All Gemini models failed. Last error: ${lastError}`);
+            throw new Error(`All models failed. Last error: ${lastError}`);
         }
 
         window.copyToClipboard = (elementId) => {
@@ -281,7 +300,10 @@ Include a 7-step integration workflow. Use reflective tone.
                         <span>Keywords Left:</span>
                         <span id="kwTotal" class="text-white font-black mono">0</span>
                     </div>
-                    <button id="btn" onclick="runAutomation()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-5 rounded-xl uppercase tracking-widest text-xs">Start Generation</button>
+                    <button id="btn" onclick="runAutomation()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black py-5 rounded-xl uppercase tracking-widest text-xs mb-2">Start Generation</button>
+                    
+                    <!-- New Diagnostic Button -->
+                    <button onclick="checkAvailableModels()" class="w-full border border-slate-700 hover:bg-slate-800 text-slate-500 font-bold py-2 rounded-xl uppercase tracking-widest text-[9px] transition-colors">Check Allowed Models</button>
                 </div>
             </div>
         </div>
