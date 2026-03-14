@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
+
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Sophie Miller Content Engine</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<title>Sophie Miller Engine</title>
 
 <link rel="icon" href="data:,">
 
@@ -16,82 +17,46 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebas
 import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
 import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-const firebaseConfig = {
-apiKey: "AIzaSyCRTw4a_4GsBzxoBICC1PmMB4Ouu0aUyEY",
-authDomain: "parasiteseo-4110c.firebaseapp.com",
-projectId: "parasiteseo-4110c",
-storageBucket: "parasiteseo-4110c.firebasestorage.app",
-messagingSenderId: "736679966975",
-appId: "1:736679966975:web:7fd130eda8828d9cbfb4ca"
+const firebaseConfig={
+apiKey:"AIzaSyCRTw4a_4GsBzxoBICC1PmMB4Ouu0aUyEY",
+authDomain:"parasiteseo-4110c.firebaseapp.com",
+projectId:"parasiteseo-4110c",
+storageBucket:"parasiteseo-4110c.firebasestorage.app",
+messagingSenderId:"736679966975",
+appId:"1:736679966975:web:7fd130eda8828d9cbfb4ca"
 };
 
-let keywords = [
-"How to Use Advanced Collagen Plus: A Step-by-Step Daily Routine Guide",
-"Step-by-Step: Incorporating Collagen into Your 2026 Skincare Routine",
-"The Morning Glow Process: How to Properly Mix Advanced Collagen Plus",
-"How to Maximize Collagen Absorption: A Visual Walkthrough",
-"A Beginner’s Guide to Starting a Collagen Supplement Routine",
-"How to Choose the Right Collagen Supplement",
-"How to Spot Fake Collagen Supplements in 2026",
-"How to Calculate Your Daily Collagen Needs",
-"How to Track Your Collagen Results",
-"How to Optimize Your Diet for Collagen Production"
-];
-
-const promptTemplates = {
-
-stage1:(h1,product)=>`
-Write a detailed 1200-1500 word article.
-
-Title: ${h1}
-
-Voice:
-Sophie Miller, calm and helpful wellness guide.
-
-Mention product naturally once:
-${product}
-
-Explain step-by-step.
-`,
-
-stage2:(text)=>`
-Improve formatting.
-
-Add headings and lists where appropriate.
-
-Text:
-${text}
-`,
-
-stage3:(text)=>`
-Convert this article to CLEAN HTML.
-
-Allowed tags:
-h1
-h2
-p
-ul
-li
-b
-
-Return ONLY HTML.
-
-Text:
-${text}
-`
-
-};
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
+const app=initializeApp(firebaseConfig);
+const auth=getAuth(app);
+const db=getFirestore(app);
 
 let userUid=null;
 let apiKey="";
 
-const geminiModels=[
+let keywords=[
+"How to Use Advanced Collagen Plus",
+"How to Start Collagen Routine",
+"How to Mix Collagen Powder",
+"Best Collagen Routine Guide",
+"Daily Collagen Process Guide",
+"Collagen Routine for Skin",
+"How to Track Collagen Results",
+"Collagen Diet Optimization",
+"Collagen Morning Routine",
+"Collagen Supplement Guide"
+];
+
+const endpoints=[
+"https://generativelanguage.googleapis.com/v1/models/",
+"https://generativelanguage.googleapis.com/v1beta/models/",
+"https://generativelanguage.googleapis.com/v1beta2/models/"
+];
+
+const models=[
 "gemini-1.5-flash",
-"gemini-1.5-pro"
+"gemini-1.5-pro",
+"gemini-1.0-pro",
+"gemini-pro"
 ];
 
 async function init(){
@@ -101,22 +66,25 @@ try{
 const r=await fetch("/api/key");
 
 if(r.ok){
+
 const data=await r.json();
 apiKey=data.key;
-setIndicator("api-status","LOADED","text-emerald-500");
-}else{
-setIndicator("api-status","KEY ERROR","text-red-500");
+
+setIndicator("api-status","READY","text-emerald-500");
+
 }
 
 }catch(e){
-setIndicator("api-status","FETCH FAIL","text-red-500");
+
+setIndicator("api-status","KEY FAIL","text-red-500");
+
 }
 
-onAuthStateChanged(auth,(user)=>{
+onAuthStateChanged(auth,user=>{
 
 if(user){
 userUid=user.uid;
-setIndicator("auth-status","AUTH OK","text-emerald-500");
+setIndicator("auth-status","OK","text-emerald-500");
 }else{
 signInAnonymously(auth);
 }
@@ -140,13 +108,13 @@ el.className=`text-[10px] font-bold ${color}`;
 
 async function callAI(prompt){
 
-if(!apiKey) throw new Error("API key missing");
-
 let lastError="";
 
-for(const model of geminiModels){
+for(const endpoint of endpoints){
 
-const url=`https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${apiKey}`;
+for(const model of models){
+
+const url=`${endpoint}${model}:generateContent?key=${apiKey}`;
 
 try{
 
@@ -170,49 +138,45 @@ maxOutputTokens:4096
 })
 });
 
+if(response.ok){
+
 const data=await response.json();
 
-if(response.ok){
 return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+
 }
 
 if(response.status!==404){
+
+const data=await response.json();
+
 throw new Error(data.error?.message || "API error");
+
 }
 
 }catch(e){
+
 lastError=e.message;
+
+}
+
 }
 
 }
 
-throw new Error("AI failed: "+lastError);
+throw new Error("All Gemini endpoints failed: "+lastError);
 
 }
-
-window.copyToClipboard=async(id)=>{
-
-const text=document.getElementById(id).value;
-
-await navigator.clipboard.writeText(text);
-
-alert("HTML copied");
-
-};
 
 window.runAutomation=async()=>{
 
 const count=parseInt(document.getElementById("count").value);
 
-const btn=document.getElementById("btn");
-
 const log=document.getElementById("log");
 
-if(!count || !apiKey) return;
+const btn=document.getElementById("btn");
 
 btn.disabled=true;
-
-log.innerHTML=`<div class="text-indigo-400 animate-pulse text-[10px] mb-4">Starting engine...</div>`;
 
 for(let i=0;i<count;i++){
 
@@ -220,66 +184,65 @@ if(keywords.length===0) break;
 
 const h1=keywords.splice(Math.floor(Math.random()*keywords.length),1)[0];
 
-const taskId=`task-${Date.now()}-${i}`;
-
 const card=document.createElement("div");
 
-card.className="bg-slate-800/40 border border-slate-700 p-4 rounded-xl mb-4 text-xs font-mono";
+card.className="bg-slate-800 p-4 rounded text-xs mb-3";
 
 log.prepend(card);
 
 try{
 
-card.innerHTML=`<div class="text-white mb-2 uppercase text-indigo-400 font-bold">${h1}</div>`;
+card.innerHTML=`Generating: ${h1}`;
 
-const s1=await callAI(promptTemplates.stage1(h1,"Advanced Collagen Plus"));
+const article=await callAI(`
+Write a 1200 word article.
 
-const s2=await callAI(promptTemplates.stage2(s1));
+Title: ${h1}
 
-const finalHtml=await callAI(promptTemplates.stage3(s2));
+Voice: Sophie Miller wellness guide.
+
+Return clean HTML.
+`);
+
+card.innerHTML+=`<textarea class="hidden" id="a${i}">${article}</textarea>
+<button onclick="copyText('a${i}')" class="bg-indigo-600 px-3 py-2 rounded mt-3">
+COPY HTML
+</button>`;
 
 if(userUid){
 
 await addDoc(
-collection(db,"artifacts","sophie-engine","public","data","articles"),
+collection(db,"articles"),
 {
-h1,
-content:finalHtml,
-createdAt:serverTimestamp()
+title:h1,
+content:article,
+created:serverTimestamp()
 }
 );
 
 }
 
-card.innerHTML+=`
-
-<div class="mt-4">
-
-<textarea id="${taskId}" class="hidden">${finalHtml}</textarea>
-
-<button onclick="copyToClipboard('${taskId}')"
-
-class="w-full bg-indigo-600 py-2 rounded font-bold">
-
-COPY HTML
-
-</button>
-
-</div>
-
-`;
-
 updateKeywordUI();
 
 }catch(e){
 
-card.innerHTML+=`<div class="text-red-500 mt-2">${e.message}</div>`;
+card.innerHTML+=`<div class="text-red-400">${e.message}</div>`;
 
 }
 
 }
 
 btn.disabled=false;
+
+};
+
+window.copyText=async(id)=>{
+
+const text=document.getElementById(id).value;
+
+await navigator.clipboard.writeText(text);
+
+alert("copied");
 
 };
 
@@ -295,61 +258,49 @@ window.onload=init;
 
 </head>
 
-<body class="bg-[#020617] text-slate-400 min-h-screen p-6 font-sans">
+<body class="bg-slate-950 text-slate-300 p-6">
 
-<div class="max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
+<div class="max-w-4xl mx-auto grid lg:grid-cols-12 gap-8">
 
-<div class="lg:col-span-5 space-y-6">
+<div class="lg:col-span-5">
 
-<div class="bg-slate-900 border border-slate-800 p-8 rounded-[2rem] shadow-2xl">
+<div class="bg-slate-900 p-8 rounded-3xl">
 
-<h1 class="text-white text-3xl font-black mb-6 italic uppercase tracking-tighter">
+<h1 class="text-white text-3xl font-black mb-6">
 
-Sophie <span class="text-indigo-500">Miller</span>
+Sophie Engine
 
 </h1>
 
-<div class="flex flex-col gap-1 mb-6">
+<div class="text-xs mb-6">
 
-<div class="flex justify-between bg-black/40 px-3 py-1 rounded border border-slate-800 text-[9px] font-bold">
-
-<span>VERCEL API:</span>
+<div class="flex justify-between">
+<span>API</span>
 <span id="api-status">...</span>
-
 </div>
 
-<div class="flex justify-between bg-black/40 px-3 py-1 rounded border border-slate-800 text-[9px] font-bold">
-
-<span>AUTH:</span>
+<div class="flex justify-between">
+<span>AUTH</span>
 <span id="auth-status">...</span>
-
 </div>
 
 </div>
 
-<div class="space-y-4">
+<input id="count" type="number" value="1"
+class="bg-black p-3 w-full rounded mb-4">
 
-<div class="bg-slate-950 p-4 rounded-xl border border-slate-800">
+<div class="flex justify-between text-xs mb-4">
 
-<label class="text-[9px] uppercase block mb-1">Batch Count</label>
-
-<input type="number" id="count" value="1"
-class="bg-transparent text-2xl font-black text-white outline-none">
-
-</div>
-
-<div class="flex justify-between py-2 text-[10px]">
-
-<span>Keywords Left:</span>
-<span id="kwTotal" class="text-white font-black">0</span>
+<span>Keywords</span>
+<span id="kwTotal">0</span>
 
 </div>
 
-<button id="btn" onclick="runAutomation()"
+<button id="btn"
+onclick="runAutomation()"
+class="w-full bg-indigo-600 py-4 rounded font-bold">
 
-class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-5 rounded-xl uppercase text-xs">
-
-Start Generation
+START
 
 </button>
 
@@ -357,12 +308,12 @@ Start Generation
 
 </div>
 
-</div>
+<div id="log"
+class="lg:col-span-7 h-[700px] overflow-y-auto">
 
-<div id="log" class="lg:col-span-7 h-[700px] overflow-y-auto pr-2 space-y-4"></div>
+</div>
 
 </div>
 
 </body>
-
 </html>
