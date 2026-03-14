@@ -10,9 +10,6 @@
         import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // ==========================================================
-        // [FIREBASE CONFIGURATION]
-        // ==========================================================
         const myCustomConfig = {
             apiKey: "AIzaSyCRTw4a_4GsBzxoBICC1PmMB4Ouu0aUyEY",
             authDomain: "parasiteseo-4110c.firebaseapp.com",
@@ -22,9 +19,6 @@
             appId: "1:736679966975:web:7fd130eda8828d9cbfb4ca"
         };
 
-        // ==========================================================
-        // [KEYWORDS.JS]
-        // ==========================================================
         let keywords = [
             "How to Use Advanced Collagen Plus: A Step-by-Step Daily Routine Guide",
             "Step-by-Step: Incorporating Collagen into Your 2026 Skincare Routine",
@@ -48,269 +42,118 @@
             "Step-by-Step: Adding Collagen to Your Nighttime Wellness Ritual"
         ];
 
-        // ==========================================================
-        // [PROMPTS.JS]
-        // ==========================================================
         const promptTemplates = [
             {
                 name: "Sophie Miller (Wellness Guide)",
-                stage1: (h1, productName) => `
-ROLE & VOICE
-You are Sophie Miller, a 40-year-old practical wellness and beauty guide writing from lived observation and repeated real-world experience.
-Your voice is: calm, grounded, factual, empathetic, reflective, human. 
-
-GOAL
-Write a 1,400–1,700 word educational guide optimized for ScribeHow and Parasite SEO.
-H1 TITLE: ${h1}
-PRODUCT: ${productName} (Mention exactly once in bold in para 2).
-Include a 7-step integration workflow. Use reflective tone.
-                `,
-                stage2: (text) => `Format the following text with **bold** headings and clear bullet points. Text: ${text}`,
-                stage3: (text) => `Convert this text to clean HTML (h1, h2, p, ul, li, b tags). Ensure a professional layout. Text: ${text}`
+                stage1: (h1, productName) => `ROLE: Sophie Miller (40yo wellness guide). VOICE: Calm, human. GOAL: 1500 word guide. H1: ${h1}. PRODUCT: ${productName} (bold once in para 2).`,
+                stage2: (text) => `Format with **bold** headers and lists. Text: ${text}`,
+                stage3: (text) => `Convert to clean HTML (h1, h2, p, ul, li, b). Output ONLY HTML. Text: ${text}`
             }
         ];
 
-        // --- ENGINE LOGIC ---
-        const firebaseConfig = myCustomConfig;
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'sophie-engine-v2';
-        
-        const app = initializeApp(firebaseConfig);
+        const app = initializeApp(myCustomConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
         let userUid = null;
         let environmentApiKey = "";
 
-        // Standard production model names that should be globally available
-        const geminiModels = [
-            "gemini-1.5-flash",
-            "gemini-1.5-pro",
-            "gemini-pro"
-        ];
+        const geminiModels = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"];
 
         async function init() {
             try {
-                // Fetch key with a relative path for Vercel
                 const response = await fetch('/api/key');
                 if (response.ok) {
                     const data = await response.json();
-                    if (data.key) {
-                        environmentApiKey = data.key.trim(); // Ensure no whitespace
-                        setIndicator('api-status', 'Loaded', 'text-emerald-500');
-                    } else {
-                        setIndicator('api-status', 'Empty Key', 'text-yellow-500');
-                    }
-                } else {
-                    setIndicator('api-status', `Error ${response.status}`, 'text-red-500');
-                }
-            } catch (e) {
-                setIndicator('api-status', 'Network Error', 'text-red-500');
-            }
+                    environmentApiKey = data.key;
+                    setIndicator('api-status', 'LOADED', 'text-emerald-500');
+                } else { setIndicator('api-status', 'KEY_ERROR', 'text-red-500'); }
+            } catch (e) { setIndicator('api-status', 'FETCH_FAIL', 'text-red-500'); }
 
             onAuthStateChanged(auth, (user) => {
-                if (user) {
-                    userUid = user.uid;
-                    setIndicator('auth-status', 'Authenticated', 'text-emerald-500');
-                } else {
-                    signInAnonymously(auth).catch(() => setIndicator('auth-status', 'Auth Failed', 'text-red-500'));
-                }
+                if (user) { userUid = user.uid; setIndicator('auth-status', 'AUTHENTICATED', 'text-emerald-500'); }
+                else { signInAnonymously(auth); }
             });
             updateKeywordUI();
         }
 
         function setIndicator(id, text, colorClass) {
             const el = document.getElementById(id);
-            if (el) {
-                el.innerText = text;
-                el.className = `text-[10px] font-bold uppercase ${colorClass}`;
-            }
+            if (el) { el.innerText = text; el.className = `text-[10px] font-bold ${colorClass}`; }
         }
 
-        window.checkAvailableModels = async () => {
-            const log = document.getElementById('log');
-            if (!environmentApiKey) {
-                log.innerHTML = `<div class="text-red-400 mono text-[10px]">API KEY NOT LOADED. RE-DEPLOY VERCEL.</div>`;
-                return;
-            }
-            log.innerHTML = `<div class="text-white mono text-[10px] mb-4">>> DIAGNOSING API PERMISSIONS...</div>`;
-            
-            try {
-                // Check v1beta first
-                const url = `https://generativelanguage.googleapis.com/v1beta/models?key=${environmentApiKey}`;
-                const response = await fetch(url);
-                const data = await response.json();
-                
-                if (data.models) {
-                    const names = data.models.map(m => m.name.replace('models/', ''));
-                    log.innerHTML += `<div class="p-3 bg-emerald-900/20 border border-emerald-500/30 rounded text-emerald-400 text-[10px] mono mb-4">
-                        <strong>ALLOWED MODELS:</strong><br>${names.join('<br>')}
-                    </div>`;
-                } else {
-                    log.innerHTML += `<div class="text-red-400 text-[10px] mono">Error: ${data.error?.message || 'Unknown API Error'}</div>`;
-                }
-            } catch (e) {
-                log.innerHTML += `<div class="text-red-400 text-[10px] mono italic">Fetch failed. Check browser console.</div>`;
-            }
-        };
-
         async function callAI(prompt) {
-            if (!environmentApiKey) throw new Error("API Key not loaded. Ensure Vercel GOOGLE_API is set.");
-
+            if (!environmentApiKey) throw new Error("API Key missing.");
             let lastError = "";
-
             for (const model of geminiModels) {
-                // Trying v1beta endpoint as primary
-                const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${environmentApiKey}`;
-
+                // CHANGED TO v1 ENDPOINT (more stable than v1beta)
+                const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${environmentApiKey}`;
                 try {
                     const response = await fetch(url, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            contents: [{ parts: [{ text: prompt }] }]
-                        })
+                        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
                     });
-                    
                     const data = await response.json();
                     if (response.ok) return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
-                    
-                    if (response.status === 404) {
-                        console.warn(`Model ${model} returned 404 at ${url}`);
-                        continue; 
-                    }
-                    throw new Error(data.error?.message || `Status ${response.status}`);
-                } catch (e) {
-                    lastError = e.message;
-                    continue;
-                }
+                    if (response.status !== 404) throw new Error(data.error?.message || "API Error");
+                } catch (e) { lastError = e.message; continue; }
             }
-            throw new Error(`All models failed. Last error: ${lastError}`);
+            throw new Error(`Connection failed: ${lastError}`);
         }
 
-        window.copyToClipboard = (elementId) => {
-            const text = document.getElementById(elementId).value;
-            const tempInput = document.createElement("textarea");
-            tempInput.value = text;
-            document.body.appendChild(tempInput);
-            tempInput.select();
-            document.execCommand("copy");
-            document.body.removeChild(tempInput);
-            const btn = document.querySelector(`[onclick="copyToClipboard('${elementId}')"]`);
-            btn.innerText = "COPIED!";
-            setTimeout(() => { btn.innerText = "COPY HTML"; }, 2000);
+        window.copyToClipboard = (id) => {
+            const el = document.getElementById(id); el.select(); document.execCommand('copy');
+            const btn = document.querySelector(`[onclick*="${id}"]`); btn.innerText = "COPIED!";
+            setTimeout(() => btn.innerText = "COPY HTML", 2000);
         };
 
         window.runAutomation = async () => {
-            const countInput = document.getElementById('count');
-            const count = parseInt(countInput.value);
-            const pName = document.getElementById('productName').value || "Advanced Collagen Plus";
-            const log = document.getElementById('log');
+            const count = parseInt(document.getElementById('count').value);
             const btn = document.getElementById('btn');
-
-            if (!count || count <= 0 || !environmentApiKey) return;
-
+            const log = document.getElementById('log');
+            if (!count || !environmentApiKey) return;
             btn.disabled = true;
-            log.innerHTML = `<div class="text-indigo-400 animate-pulse font-mono text-xs mb-4">>> SOPHIE ENGINE STARTING...</div>`;
-
+            log.innerHTML = `<div class="text-indigo-400 animate-pulse text-[10px] mb-4">>> STARTING ENGINE...</div>`;
             for (let i = 0; i < count; i++) {
                 if (keywords.length === 0) break;
                 const h1 = keywords.splice(Math.floor(Math.random() * keywords.length), 1)[0];
                 const taskId = `task-${Date.now()}-${i}`;
                 const card = document.createElement('div');
-                card.className = "bg-slate-800/40 border border-slate-700/50 p-4 rounded-xl mb-4 text-xs font-mono";
+                card.className = "bg-slate-800/40 border border-slate-700 p-4 rounded-xl mb-4 text-xs font-mono";
                 log.prepend(card);
-
                 try {
-                    card.innerHTML = `<div class="text-white font-bold mb-2 uppercase text-indigo-400 tracking-tighter">${h1}</div>`;
-                    card.innerHTML += `<div class="flex justify-between items-center"><span>Generating...</span><span id="s1-${i}">⏳</span></div>`;
-                    const s1 = await callAI(promptTemplates[0].stage1(h1, pName));
-                    document.getElementById(`s1-${i}`).innerText = "✅";
-
-                    card.innerHTML += `<div class="flex justify-between items-center"><span>Formatting...</span><span id="s2-${i}">⏳</span></div>`;
-                    const s2 = await callAI(promptTemplates[0].stage2(s1));
-                    document.getElementById(`s2-${i}`).innerText = "✅";
-
-                    card.innerHTML += `<div class="flex justify-between items-center text-emerald-400 font-bold"><span>Completed!</span><span>✅</span></div>`;
-                    const finalHtml = await callAI(promptTemplates[0].stage3(s2));
-
-                    if (userUid) {
-                        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'articles'), {
-                            h1, content: finalHtml, createdAt: serverTimestamp()
-                        });
-                    }
-
-                    card.innerHTML += `
-                        <div class="mt-4">
-                            <textarea id="${taskId}" class="hidden">${finalHtml}</textarea>
-                            <button onclick="copyToClipboard('${taskId}')" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 rounded-lg text-[10px] transition-colors">COPY HTML</button>
-                        </div>
-                    `;
+                    card.innerHTML = `<div class="text-white mb-2 uppercase text-indigo-400 font-bold">${h1}</div>`;
+                    const s1 = await callAI(promptTemplates[0].stage1(h1, "Advanced Collagen Plus"));
+                    const finalHtml = await callAI(promptTemplates[0].stage3(s1));
+                    if (userUid) { await addDoc(collection(db, 'artifacts', 'sophie-engine', 'public', 'data', 'articles'), { h1, content: finalHtml, createdAt: serverTimestamp() }); }
+                    card.innerHTML += `<div class="mt-4"><textarea id="${taskId}" class="hidden">${finalHtml}</textarea><button onclick="copyToClipboard('${taskId}')" class="w-full bg-indigo-600 py-2 rounded font-bold">COPY HTML</button></div>`;
                     updateKeywordUI();
-                } catch (e) {
-                    card.innerHTML += `<div class="text-red-500 mt-2 font-bold uppercase border-t border-red-900/50 pt-2">!! ERROR: ${e.message}</div>`;
-                }
+                } catch (e) { card.innerHTML += `<div class="text-red-500 mt-2">!! ERROR: ${e.message}</div>`; }
             }
             btn.disabled = false;
-        }
+        };
 
-        function updateKeywordUI() {
-            document.getElementById('kwTotal').innerText = keywords.length;
-        }
-
+        function updateKeywordUI() { document.getElementById('kwTotal').innerText = keywords.length; }
         window.onload = init;
     </script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&family=JetBrains+Mono:wght@400;700&display=swap');
-        body { font-family: 'Inter', sans-serif; }
-        .mono { font-family: 'JetBrains+Mono', monospace; }
-        .custom-scroll::-webkit-scrollbar { width: 4px; }
-        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
-        .custom-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
-    </style>
 </head>
-<body class="bg-[#020617] text-slate-400 min-h-screen p-6">
-
+<body class="bg-[#020617] text-slate-400 min-h-screen p-6 font-sans">
     <div class="max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
         <div class="lg:col-span-5 space-y-6">
-            <div class="bg-slate-900 border border-slate-800 p-8 rounded-[2.5rem] shadow-2xl">
+            <div class="bg-slate-900 border border-slate-800 p-8 rounded-[2rem] shadow-2xl">
                 <h1 class="text-white text-3xl font-black mb-6 italic uppercase tracking-tighter">Sophie <span class="text-indigo-500 tracking-normal">Miller</span></h1>
-                
                 <div class="flex flex-col gap-1 mb-6">
-                    <div class="flex justify-between bg-black/40 px-3 py-1.5 rounded border border-slate-800">
-                        <span class="text-[9px] font-bold text-slate-500 uppercase">Vercel API:</span>
-                        <span id="api-status" class="text-[10px] mono">Syncing...</span>
-                    </div>
-                    <div class="flex justify-between bg-black/40 px-3 py-1.5 rounded border border-slate-800">
-                        <span class="text-[9px] font-bold text-slate-500 uppercase">Auth:</span>
-                        <span id="auth-status" class="text-[10px] mono">Syncing...</span>
-                    </div>
+                    <div class="flex justify-between bg-black/40 px-3 py-1 rounded border border-slate-800 text-[9px] font-bold"><span>VERCEL API:</span><span id="api-status">...</span></div>
+                    <div class="flex justify-between bg-black/40 px-3 py-1 rounded border border-slate-800 text-[9px] font-bold"><span>AUTH:</span><span id="auth-status">...</span></div>
                 </div>
-
                 <div class="space-y-4">
-                    <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 focus-within:border-indigo-500/50">
-                        <label class="text-[9px] font-bold text-slate-500 uppercase block mb-1 tracking-wider">Batch Count</label>
-                        <input type="number" id="count" value="1" class="bg-transparent text-2xl font-black text-white w-full outline-none">
-                    </div>
-                    <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 focus-within:border-indigo-500/50">
-                        <label class="text-[9px] font-bold text-slate-500 uppercase block mb-1 tracking-wider">Product Name</label>
-                        <input type="text" id="productName" value="Advanced Collagen Plus" class="bg-transparent text-base font-bold text-indigo-400 w-full outline-none">
-                    </div>
-                    <div class="flex justify-between items-center py-2 text-xs">
-                        <span class="text-slate-500 font-bold uppercase text-[9px] tracking-wider">Keywords Left:</span>
-                        <span id="kwTotal" class="text-white font-black mono text-base">0</span>
-                    </div>
-                    <button id="btn" onclick="runAutomation()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-5 rounded-xl uppercase tracking-widest text-xs mb-2 shadow-lg shadow-indigo-900/20 transition-all active:scale-95">Start Generation</button>
-                    
-                    <button onclick="checkAvailableModels()" class="w-full border border-slate-700 hover:bg-slate-800 text-slate-500 font-bold py-2 rounded-xl uppercase tracking-widest text-[9px] transition-colors italic">Check Allowed Models</button>
+                    <div class="bg-slate-950 p-4 rounded-xl border border-slate-800"><label class="text-[9px] uppercase block mb-1">Batch Count</label><input type="number" id="count" value="1" class="bg-transparent text-2xl font-black text-white outline-none"></div>
+                    <div class="flex justify-between py-2 text-[10px]"><span>Keywords Left:</span><span id="kwTotal" class="text-white font-black">0</span></div>
+                    <button id="btn" onclick="runAutomation()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-5 rounded-xl uppercase text-xs">Start Generation</button>
                 </div>
             </div>
         </div>
-
-        <div class="lg:col-span-7">
-            <div id="log" class="h-[650px] overflow-y-auto custom-scroll pr-2 space-y-4">
-                <div class="flex flex-col items-center justify-center h-full text-slate-800 italic text-sm">Awaiting task list...</div>
-            </div>
-        </div>
+        <div id="log" class="lg:col-span-7 h-[700px] overflow-y-auto pr-2 custom-scroll space-y-4"></div>
     </div>
-
 </body>
 </html>
