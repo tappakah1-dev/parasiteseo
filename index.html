@@ -1,319 +1,707 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sophie Miller Content Engine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const myCustomConfig = {
+            apiKey: "AIzaSyCRTw4a_4GsBzxoBICC1PmMB4Ouu0aUyEY",
+            authDomain: "parasiteseo-4110c.firebaseapp.com",
+            projectId: "parasiteseo-4110c",
+            storageBucket: "parasiteseo-4110c.firebasestorage.app",
+            messagingSenderId: "736679966975",
+            appId: "1:736679966975:web:7fd130eda8828d9cbfb4ca"
+        };
+
+        let keywords = [
+            "How to Use Advanced Collagen Plus: A Step-by-Step Daily Routine Guide",
+            "Step-by-Step: Incorporating Collagen into Your 2026 Skincare Routine",
+            "The Morning Glow Process: How to Properly Mix Advanced Collagen Plus",
+            "How to Maximize Collagen Absorption: A Visual Walkthrough",
+            "A Beginner’s Guide to Starting a Collagen Supplement Routine (Steps Included)",
+            "How to Choose the Right Collagen: Comparing Advanced Collagen Plus to the Rest",
+            "Step-by-Step Guide: Evaluating Collagen Supplements for Quality and Purity",
+            "How to Spot \"Fake\" Collagen: A Checklist for 2026 Shoppers",
+            "Process: Transitioning from Standard Protein to Advanced Collagen Plus",
+            "How to Calculate Your Daily Collagen Needs (Step-by-Step Formula)",
+            "How to Track Your Collagen Results: A 90-Day Skin & Hair Log",
+            "Step-by-Step: What to Expect During Your First Month of Collagen",
+            "How to Optimize Your Diet for Collagen Production: A Weekly Checklist",
+            "The \"Anti-Aging\" Workflow: Pairing Collagen with Your Morning Skincare",
+            "How to Fix Brittle Nails: A Step-by-Step Recovery Guide Using Collagen",
+            "How to Make Collagen Coffee: The Perfect Advanced Collagen Plus Recipe",
+            "Step-by-Step: Creating a Collagen-Infused Pre-Workout Routine",
+            "How to Store and Preserve Collagen Potency: A Quick Visual Guide",
+            "The Travel Guide: How to Maintain Your Collagen Routine on the Go",
+            "Step-by-Step: Adding Collagen to Your Nighttime Wellness Ritual"
+        ];
 
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+        const promptTemplates = [
+            {
+                name: "Sophie Miller (Wellness Guide)",
+                stage1: (h1, productName) => `
+ROLE & VOICE
 
-<title>Sophie Miller Engine</title>
+You are Sophie Miller, a 40-year-old practical wellness and beauty guide writing from lived observation and repeated real-world experience.
 
-<link rel="icon" href="data:,">
+Your voice is:
 
-<script src="https://cdn.tailwindcss.com"></script>
+- calm
+- grounded
+- factual
+- empathetic
+- reflective
+- human
 
-<script type="module">
+You never sound:
 
-import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+- promotional
+- sales-driven
+- exaggerated
+- persuasive
 
-const firebaseConfig={
-apiKey:"AIzaSyCRTw4a_4GsBzxoBICC1PmMB4Ouu0aUyEY",
-authDomain:"parasiteseo-4110c.firebaseapp.com",
-projectId:"parasiteseo-4110c",
-storageBucket:"parasiteseo-4110c.firebasestorage.app",
-messagingSenderId:"736679966975",
-appId:"1:736679966975:web:7fd130eda8828d9cbfb4ca"
-};
 
-const app=initializeApp(firebaseConfig);
-const auth=getAuth(app);
-const db=getFirestore(app);
+Occasionally include subtle observational phrases such as:
 
-let userUid=null;
-let apiKey="";
+"I’ve noticed over the years…"
+"From what I’ve seen in practice…"
+"Many people quietly discover…"
+"One thing that often surprises people is…"
+"Over time, some patterns start to appear…"
+"It’s something I’ve seen come up again and again…"
+"In everyday conversations, this tends to come up often…"
+"Some people start noticing small changes after a while…"
+"One quiet pattern I’ve observed is…"
+"Over the years, certain habits seem to matter more than expected…"
+"It’s interesting how often this comes up in real life…"
+"From what I’ve seen, responses can vary quite a bit…"
+"In many real-world routines, this shows up naturally…"
+"People often mention something similar after some time…"
+"Something that tends to appear in long-term routines is…"
+"One small observation that comes up repeatedly is…"
+"In practice, the experience often unfolds gradually…"
+"It’s not something people notice right away, but over time…"
+"Sometimes the shift is subtle enough that people overlook it at first…"
+"In everyday life, these small details often matter more than expected…"
 
-let keywords=[
-"How to Use Advanced Collagen Plus",
-"How to Start Collagen Routine",
-"How to Mix Collagen Powder",
-"Best Collagen Routine Guide",
-"Daily Collagen Process Guide",
-"Collagen Routine for Skin",
-"How to Track Collagen Results",
-"Collagen Diet Optimization",
-"Collagen Morning Routine",
-"Collagen Supplement Guide"
-];
+These observations should appear naturally and never be overused.
 
-const endpoints=[
-"https://generativelanguage.googleapis.com/v1/models/",
-"https://generativelanguage.googleapis.com/v1beta/models/",
-"https://generativelanguage.googleapis.com/v1beta2/models/"
-];
 
-const models=[
-"gemini-1.5-flash",
-"gemini-1.5-pro",
-"gemini-1.0-pro",
-"gemini-pro"
-];
+--------------------------------------------------
 
-async function init(){
 
-try{
+GOAL
 
-const r=await fetch("/api/key");
+Write a 1,400–1,700 word educational guide optimized for ScribeHow and Parasite SEO.
 
-if(r.ok){
+The article must feel:
 
-const data=await r.json();
-apiKey=data.key;
+- native to the platform
+- instructional rather than optimized
+- thoughtful rather than persuasive
+- written for humans first, not search engines
 
-setIndicator("api-status","READY","text-emerald-500");
+The article must read like a reflective human guide rather than a content system.
 
-}
+Avoid obvious SEO structure patterns.
 
-}catch(e){
 
-setIndicator("api-status","KEY FAIL","text-red-500");
+--------------------------------------------------
 
-}
 
-onAuthStateChanged(auth,user=>{
+H1 TITLE
 
-if(user){
-userUid=user.uid;
-setIndicator("auth-status","OK","text-emerald-500");
-}else{
-signInAnonymously(auth);
-}
+${h1}
 
-});
+(The H1 is provided externally and must be used verbatim.)
 
-updateKeywordUI();
 
-}
+--------------------------------------------------
 
-function setIndicator(id,text,color){
 
-const el=document.getElementById(id);
+PRODUCT REFERENCE
 
-if(el){
-el.innerText=text;
-el.className=`text-[10px] font-bold ${color}`;
-}
+${productName}
 
-}
+Rules:
 
-async function callAI(prompt){
+- Mention exactly once in the entire article
+- The mention must be in **bold**
+- Place it naturally in the introduction (preferably paragraph 2)
+- Reference it neutrally as an example of a supplement some people explore
+- No endorsement
+- No urgency
+- No recommendation
+- No benefit framing
+- No links or calls to action
 
-let lastError="";
 
-for(const endpoint of endpoints){
+--------------------------------------------------
 
-for(const model of models){
 
-const url=`${endpoint}${model}:generateContent?key=${apiKey}`;
+CORE WRITING PRINCIPLES
 
-try{
 
-const response=await fetch(url,{
-method:"POST",
-headers:{
-"Content-Type":"application/json"
-},
-body:JSON.stringify({
-contents:[
-{
-parts:[
-{text:prompt}
-]
-}
-],
-generationConfig:{
-temperature:0.7,
-maxOutputTokens:4096
-}
-})
-});
+Human Variance
 
-if(response.ok){
+- Vary sentence length naturally
+- Mix short sentences with longer reflective ones
+- Avoid repetitive rhythm
+- Avoid repeating phrasing patterns
 
-const data=await response.json();
 
-return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+Narrative Naturalness
 
-}
+Sections should feel written as thoughtful reflections rather than structured information blocks.
 
-if(response.status!==404){
+Avoid mechanical explanations.
 
-const data=await response.json();
 
-throw new Error(data.error?.message || "API error");
+Anti-Hype
 
-}
+- No medical claims
+- No guarantees
+- No promises
+- No exaggerated benefits
 
-}catch(e){
+Avoid phrases such as:
 
-lastError=e.message;
+"In conclusion"
+"Furthermore"
+"It’s important to note"
+"Studies show"
 
-}
 
-}
+Grounded Authority
 
-}
+- Explain why things tend to work
+- Favor lived observation
+- Favor nuance over certainty
+- Avoid definitive claims
 
-throw new Error("All Gemini endpoints failed: "+lastError);
 
-}
+Mobile-First Formatting
 
-window.runAutomation=async()=>{
+- Paragraphs: 3–5 sentences maximum
+- Short visual blocks
+- Clear reading flow
+- No dense text walls
 
-const count=parseInt(document.getElementById("count").value);
 
-const log=document.getElementById("log");
+Natural Typography
 
-const btn=document.getElementById("btn");
+Use curly quotation marks (“ ”) and apostrophes (‘ ’).
 
-btn.disabled=true;
+Maintain natural punctuation and cadence.
 
-for(let i=0;i<count;i++){
 
-if(keywords.length===0) break;
+Platform Fit
 
-const h1=keywords.splice(Math.floor(Math.random()*keywords.length),1)[0];
+The article must read like a thoughtful guide someone wrote slowly over time.
 
-const card=document.createElement("div");
+Never reference:
 
-card.className="bg-slate-800 p-4 rounded text-xs mb-3";
+- AI
+- tools
+- writing systems
+- optimization
+- algorithms
 
-log.prepend(card);
 
-try{
+--------------------------------------------------
 
-card.innerHTML=`Generating: ${h1}`;
 
-const article=await callAI(`
-Write a 1200 word article.
+INTRODUCTION
 
-Title: ${h1}
+(≈180–220 words)
 
-Voice: Sophie Miller wellness guide.
+Write the introduction using 2–3 short paragraphs.
 
-Return clean HTML.
-`);
+Avoid predictable AI openings such as:
 
-card.innerHTML+=`<textarea class="hidden" id="a${i}">${article}</textarea>
-<button onclick="copyText('a${i}')" class="bg-indigo-600 px-3 py-2 rounded mt-3">
-COPY HTML
-</button>`;
+"As we age..."
+"Many people..."
+"It is common..."
+"Over time..."
 
-if(userUid){
+Instead open with a grounded real-life observation.
 
-await addDoc(
-collection(db,"articles"),
-{
-title:h1,
-content:article,
-created:serverTimestamp()
-}
-);
 
-}
+Paragraph 1 — Context & Relatability
 
-updateKeywordUI();
+Open with an observational moment related to:
 
-}catch(e){
+- gradual aging
+- body maintenance
+- long-term wellness habits
+- resilience of the body over time
 
-card.innerHTML+=`<div class="text-red-400">${e.message}</div>`;
+Focus on lived experience rather than instruction.
 
-}
 
-}
+Paragraph 2 — Expectation Setting
 
-btn.disabled=false;
+Set realistic expectations.
 
-};
+Explain that changes related to supplements tend to be:
 
-window.copyText=async(id)=>{
+- subtle
+- cumulative
+- context-dependent
 
-const text=document.getElementById(id).value;
+Mention **${productName}** exactly once in this paragraph.
 
-await navigator.clipboard.writeText(text);
+The mention must remain neutral and observational.
 
-alert("copied");
 
-};
+Paragraph 3 — Optional Transition
 
-function updateKeywordUI(){
+Use only if it improves narrative flow.
 
-document.getElementById("kwTotal").innerText=keywords.length;
+Transition gently into curiosity, exploration, or what people gradually notice over time.
 
-}
 
-window.onload=init;
+--------------------------------------------------
 
-</script>
 
+STRUCTURAL LENS RANDOMIZATION
+
+Before writing the article, internally select ONE primary structural lens.
+
+Possible lenses include:
+
+- observational
+- habit-driven
+- expectation-based
+- biological
+- lifestyle-focused
+- long-term maintenance
+- reflective analysis
+
+
+--------------------------------------------------
+
+
+ARTICLE STRUCTURE — INTELLIGENT RANDOMIZATION MODE
+
+Design a unique H2 structure for this article.
+
+Before writing, mentally confirm:
+
+- Each H2 explores a different conceptual angle
+- No two H2s answer the same question
+- The order feels natural
+- The structure would not repeat easily across multiple articles
+
+
+--------------------------------------------------
+
+
+H2 TITLE VARIABILITY
+
+H2 titles must vary in tone and framing.
+
+Possible styles include:
+
+Observational  
+"What People Often Notice After Several Months"
+
+Practical  
+"Small Daily Habits That Quietly Support Long-Term Wellness"
+
+Biological  
+"What Happens Inside the Body Over the Years"
+
+Reflective  
+"Why Expectations Often Shape the Experience"
+
+Lifestyle  
+"How Everyday Habits Influence Long-Term Health"
+
+
+--------------------------------------------------
+
+
+HARD STRUCTURAL RULES
+
+- Write 5–6 H2 sections total (excluding introduction)
+- Avoid predictable sequences
+- Avoid repeating H2 framing logic
+- Avoid identical narrative patterns
+
+
+--------------------------------------------------
+
+
+MANDATORY H2 SECTION
+
+(Daily Integration Workflow)
+
+One H2 must present a 7-step daily integration workflow.
+
+Rules:
+
+- The H2 title must be unique
+- Present it as a real-life daily scenario
+- Avoid generic wellness lists
+
+Each step must explain:
+
+- what is done
+- why it matters in everyday life
+
+
+--------------------------------------------------
+
+
+CONTENT COVERAGE
+
+Across the remaining H2 sections, naturally explore most of the following themes.
+
+Never present them as a checklist.
+
+Themes may include:
+
+- how the body maintains structural proteins over time
+- why natural production can shift with age
+- different types of structural proteins in the body
+- digestion and nutrient absorption variability
+- supporting nutrients (Vitamin C, Zinc, Copper)
+- timing and consistency of supplement routines
+- expectation management
+- lifestyle anchors (sleep, hydration, sun exposure)
+
+
+--------------------------------------------------
+
+
+ENTROPY & VARIATION RULES
+
+To prevent repetitive structure:
+
+- Vary paragraph count per section
+- Occasionally include reflective observations
+- Occasionally include situational examples
+- Avoid repeating metaphors
+- Avoid repeating comparison structures
+
+Do not mirror the structure of typical SEO articles.
+
+
+--------------------------------------------------
+
+
+KEY TAKEAWAYS
+
+Provide 5–6 concise bullet points.
+
+Focus on:
+
+- realism
+- context
+- calm guidance
+
+Avoid:
+
+- promises
+- marketing language
+- exaggerated claims
+
+
+--------------------------------------------------
+
+
+FAQ SECTION
+
+Include 5–7 realistic high-intent questions.
+
+Each answer must be 3–4 sentences.
+
+Answers should provide nuance or clarification not already covered.
+
+
+--------------------------------------------------
+
+
+FINAL QUALITY CHECK
+
+Before finishing, ensure:
+
+- The article does not feel templated
+- Paragraph rhythm varies naturally
+- No section sounds promotional
+- The narrative feels reflective and human
+- The article reads like it was written by a thoughtful guide rather than a content generator.
+                `,
+                stage2: (text) => `You are an expert editor for Sophie Miller. The current draft is too short. EXPAND the content significantly to reach a total length of at least 1,700 words. 
+
+Instructions for expansion:
+1. Deepen the narrative: Add 2-3 extra paragraphs of reflective observation to every existing section.
+2. Add nuance: Explain the "why" behind every suggestion with lived experience.
+3. Word count target: Be verbose and descriptive. Use long, thoughtful sentences.
+4. Formatting: Ensure EVERY H1, H2, and H3 header is formatted as **BOLD**.
+5. Maintain the persona: Do not sound promotional. Keep it calm and grounded.
+
+Text to expand: ${text}`,
+                stage3: (text) => `Final quality polish. Ensure the tone remains Sophie Miller's calm, reflective voice. Output ONLY the polished, readable text with clear spacing between sections and bold headers preserved. Ensure the word count remains high (1,700+ words). Remove any AI-style meta-talk. Text: ${text}`
+            }
+        ];
+
+        const app = initializeApp(myCustomConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        let userUid = null;
+        let environmentApiKey = "";
+
+        const geminiModels = ["gemini-1.5-flash", "gemini-1.5-pro", "gemini-pro"];
+
+        async function init() {
+            try {
+                const response = await fetch('/api/key');
+                if (response.ok) {
+                    const data = await response.json();
+                    environmentApiKey = data.key;
+                    setIndicator('api-status', 'LOADED', 'text-emerald-500');
+                } else { setIndicator('api-status', 'KEY_OFFLINE', 'text-slate-500'); }
+            } catch (e) { setIndicator('api-status', 'API_OFFLINE', 'text-slate-500'); }
+
+            onAuthStateChanged(auth, (user) => {
+                if (user) { userUid = user.uid; setIndicator('auth-status', 'CONNECTED', 'text-emerald-500'); }
+                else { signInAnonymously(auth); }
+            });
+            updateKeywordUI();
+        }
+
+        function setIndicator(id, text, colorClass) {
+            const el = document.getElementById(id);
+            if (el) { el.innerText = text; el.className = `text-[10px] font-bold ${colorClass}`; }
+        }
+
+        async function callAI(prompt, stageNum, h1) {
+            const isTestMode = document.getElementById('testModeToggle').checked;
+            
+            if (isTestMode) {
+                await new Promise(r => setTimeout(r, 1000));
+                if (stageNum === 1) return `Extensive Sophie Miller initial draft for ${h1}...`;
+                if (stageNum === 2) return `**${h1}**\n\nExpansion of content to 1,850 words. Deep analysis of structural proteins... **Advanced Collagen Plus** mentioned.`;
+                
+                return `**${h1}**
+
+I’ve noticed over the years that the most enduring changes aren’t the ones that arrive with a loud announcement, but the ones that settle in quietly through consistent, gentle habits. When we look at maintaining the body’s natural resilience, **Advanced Collagen Plus** is one of those examples that people often integrate into a wider approach to wellness. It is not a magic solution, but rather a tool in a much larger kit of daily maintenance.
+
+**The Biological Rhythm of Maintenance**
+In my practice, I’ve seen how the body manages its internal proteins. It’s a slow process, one that requires patience and a grounded understanding that quick fixes are rarely the answer. Over time, I've observed that some patterns start to appear when we look closely at how we nourish ourselves. It’s interesting how often this comes up in real life conversations; we expect immediate results, but the body operates on a different, much slower clock.
+
+**Small Daily Habits That Quietly Support Long-Term Wellness**
+One quiet pattern I’ve observed is that the surroundings of our habits matter just as much as the habits themselves. From what I’ve seen in practice, people who find success with new routines are those who treat them with a certain level of reflective calm rather than urgency.
+
+**A Step-by-Step Daily Integration Workflow**
+1. **Morning Grounding**: Begin by creating a calm space. I've noticed over the years that if the morning is rushed, the body stays in a state of high alert.
+2. **Hydration First**: Water is the foundation of every routine. It prepares the digestive system for what follows.
+3. **Gentle Integration**: Adding the supplement to your preferred morning beverage. It should feel like a natural part of the morning flow.
+4. **Consistency check**: Marking the habit to ensure it isn't overlooked. Small rituals help ground us in the present.
+5. **Observation**: Taking a moment to notice how the body feels. In everyday life, these small details often matter more than expected.
+6. **Adjustment**: Modifying the timing based on daily needs. From what I’ve seen, responses can vary quite a bit.
+7. **Evening Reflection**: Noting the cumulative effect over weeks, not days. It’s not something people notice right away, but over time the shift becomes clear.
+
+**What Happens Inside the Body Over the Years**
+Biological shifts are inevitable, but they don't have to be jarring. Sometimes the shift is subtle enough that people overlook it at first. In many real-world routines, this shows up naturally as a change in texture or energy levels. Many people quietly discover that their needs shift as they cross into new decades.
+
+**Why Expectations Often Shape the Experience**
+I've seen come up again and again that our mental state during wellness routines influences how we perceive the results. If we look for a miracle, we miss the steady, grounded progress. One thing that often surprises people is how much their mindset contributes to the overall feeling of resilience.
+
+**Key Takeaways**
+- Focus on cumulative habits rather than quick fixes.
+- Consistency in the morning routine provides a baseline for observation.
+- Resilience is built slowly through structural protein support.
+- Mindful integration leads to better habit retention.
+- Listen to the body's subtle signals over several months.
+
+**FAQ Section**
+1. **How long before I notice a difference?** In practice, the experience often unfolds gradually. You might start noticing small changes after a few months, rather than weeks.
+2. **Does timing matter?** In everyday conversations, this tends to come up often. While consistency is key, the exact hour matters less than the daily habit.
+3. **Can I mix it with coffee?** Yes, it integrates naturally into most warm routines without losing its integrity.
+4. **Is this for everyone?** Some people start noticing small changes right away, while others take longer. It is highly individual.
+5. **Should I use it daily?** Habit-driven success relies on the daily loop to build body resilience over time.
+
+[... In production mode, Stage 2 would have expanded these sections to reach 1,700-2,000 words total ...]`;
+            }
+
+            if (!environmentApiKey) throw new Error("API Key missing.");
+            let lastError = "";
+            for (const model of geminiModels) {
+                const url = `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${environmentApiKey}`;
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                    });
+                    const data = await response.json();
+                    if (response.ok) return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+                    if (response.status !== 404) throw new Error(data.error?.message || "API Error");
+                } catch (e) { lastError = e.message; continue; }
+            }
+            throw new Error(`Connection failed: ${lastError}`);
+        }
+
+        window.copyToClipboard = (id) => {
+            const el = document.getElementById(id);
+            el.select();
+            document.execCommand('copy');
+            const btn = document.querySelector(`[onclick*="copyToClipboard('${id}')"]`);
+            btn.innerText = "COPIED!";
+            btn.classList.add('bg-emerald-600');
+            setTimeout(() => { 
+                btn.innerText = "COPY TEXT"; 
+                btn.classList.remove('bg-emerald-600');
+            }, 2000);
+        };
+
+        window.togglePreview = (id) => {
+            const el = document.getElementById(`preview-${id}`);
+            el.classList.toggle('hidden');
+        };
+
+        window.runAutomation = async () => {
+            const count = parseInt(document.getElementById('count').value);
+            const btn = document.getElementById('btn');
+            const log = document.getElementById('log');
+            const isTestMode = document.getElementById('testModeToggle').checked;
+            
+            if (!count) return;
+
+            btn.disabled = true;
+            log.innerHTML = `<div class="text-indigo-400 animate-pulse text-[10px] mb-4 mono tracking-widest">>> ENGINE ACTIVATED (TARGET: 1,700+ WORDS)</div>`;
+            
+            for (let i = 0; i < count; i++) {
+                if (keywords.length === 0) break;
+                
+                const randomIndex = Math.floor(Math.random() * keywords.length);
+                const h1 = keywords.splice(randomIndex, 1)[0];
+                updateKeywordUI();
+
+                const taskId = `task-${Date.now()}-${i}`;
+                const card = document.createElement('div');
+                card.className = "bg-slate-900 border border-slate-800 p-6 rounded-3xl mb-8 shadow-2xl transition-all";
+                log.prepend(card);
+
+                try {
+                    card.innerHTML = `<div class="text-white text-sm font-bold mb-4 flex justify-between">
+                        <span class="truncate pr-4">${h1}</span>
+                        <span class="text-[9px] text-indigo-500 mono uppercase bg-indigo-500/10 px-2 py-1 rounded">Batch ${i+1}</span>
+                    </div>
+                    <div class="space-y-3 mb-6">
+                        <div class="flex justify-between text-[10px] mono"><span>Drafting Initial Narrative...</span><span id="s1-${i}">⏳</span></div>
+                        <div class="flex justify-between text-[10px] mono"><span>Expanding Content (Deep Dive)...</span><span id="s2-${i}">⏳</span></div>
+                        <div class="flex justify-between text-[10px] mono"><span>Final Sophie Miller Polish...</span><span id="s3-${i}">⏳</span></div>
+                    </div>`;
+                    
+                    const s1 = await callAI(promptTemplates[0].stage1(h1, "Advanced Collagen Plus"), 1, h1);
+                    document.getElementById(`s1-${i}`).innerText = "✅";
+                    
+                    const s2 = await callAI(promptTemplates[0].stage2(s1), 2, h1);
+                    document.getElementById(`s2-${i}`).innerText = "✅";
+                    
+                    const finalContent = await callAI(promptTemplates[0].stage3(s2), 3, h1);
+                    document.getElementById(`s3-${i}`).innerText = "✅";
+                    
+                    if (userUid && !isTestMode) { 
+                        await addDoc(collection(db, 'artifacts', 'sophie-engine', 'public', 'data', 'articles'), { 
+                            h1, content: finalContent, createdAt: serverTimestamp() 
+                        }); 
+                    }
+                    
+                    card.innerHTML += `
+                        <div class="mt-4 space-y-3">
+                            <textarea id="${taskId}" class="w-full bg-slate-950 border border-slate-800 rounded-2xl p-4 text-[11px] mono h-48 focus:ring-1 focus:ring-indigo-500 outline-none leading-relaxed text-slate-300">${finalContent}</textarea>
+                            <div class="grid grid-cols-2 gap-3">
+                                <button onclick="copyToClipboard('${taskId}')" class="bg-indigo-600 hover:bg-indigo-500 text-white font-black py-4 rounded-2xl text-xs transition-all uppercase tracking-widest">COPY TEXT</button>
+                                <button onclick="togglePreview('${taskId}')" class="border border-slate-700 hover:bg-slate-800 text-slate-400 font-bold py-4 rounded-2xl text-[10px] transition-all uppercase">Preview</button>
+                            </div>
+                            <div id="preview-${taskId}" class="hidden p-6 bg-white text-slate-900 rounded-3xl h-64 overflow-y-auto whitespace-pre-wrap font-serif text-sm leading-loose shadow-inner">
+                                ${finalContent}
+                            </div>
+                        </div>
+                    `;
+                } catch (e) { card.innerHTML += `<div class="text-red-500 mt-2 bg-red-500/10 p-3 rounded-xl text-[10px]">!! ERROR: ${e.message}</div>`; }
+            }
+            btn.disabled = false;
+        };
+
+        function updateKeywordUI() { document.getElementById('kwTotal').innerText = keywords.length; }
+        window.onload = init;
+    </script>
 </head>
+<body class="bg-[#020617] text-slate-400 min-h-screen p-4 md:p-12 font-sans">
+    <div class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12">
+        
+        <div class="lg:col-span-4 space-y-8">
+            <div class="bg-slate-900 border border-slate-800 p-10 rounded-[3rem] shadow-2xl relative overflow-hidden">
+                <div class="absolute -top-20 -right-20 w-64 h-64 bg-indigo-500/10 blur-[100px] rounded-full"></div>
+                <h1 class="text-white text-4xl font-black mb-10 italic uppercase tracking-tighter">Sophie <span class="text-indigo-500 tracking-normal">Miller</span></h1>
+                
+                <div class="space-y-3 mb-10">
+                    <div class="flex justify-between items-center bg-black/30 px-5 py-3 rounded-2xl border border-slate-800 text-[10px] font-bold">
+                        <span class="text-slate-500 uppercase tracking-widest">API Status</span>
+                        <span id="api-status">...</span>
+                    </div>
+                    <div class="flex justify-between items-center bg-black/30 px-5 py-3 rounded-2xl border border-slate-800 text-[10px] font-bold">
+                        <span class="text-slate-500 uppercase tracking-widest">Cloud Auth</span>
+                        <span id="auth-status">...</span>
+                    </div>
+                </div>
 
-<body class="bg-slate-950 text-slate-300 p-6">
+                <div class="space-y-6">
+                    <div class="bg-slate-950 p-6 rounded-3xl border border-slate-800 focus-within:border-indigo-500/50 transition-all">
+                        <label class="text-[10px] uppercase font-black text-slate-500 block mb-3 tracking-[0.2em]">Batch Count</label>
+                        <input type="number" id="count" value="1" min="1" class="bg-transparent text-4xl font-black text-white w-full outline-none">
+                    </div>
+                    
+                    <div class="flex items-center justify-between p-5 bg-indigo-500/5 rounded-3xl border border-indigo-500/20">
+                        <div class="flex flex-col">
+                            <span class="text-[10px] font-black uppercase text-indigo-400 tracking-widest">Test Mode</span>
+                            <span class="text-[9px] text-slate-500 italic mt-1">Simulated depth</span>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" id="testModeToggle" class="sr-only peer" checked>
+                            <div class="w-12 h-7 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                        </label>
+                    </div>
 
-<div class="max-w-4xl mx-auto grid lg:grid-cols-12 gap-8">
+                    <div class="flex justify-between items-center py-2 px-1">
+                        <span class="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Remaining H1:</span>
+                        <span id="kwTotal" class="text-white font-black text-2xl mono tracking-tighter">0</span>
+                    </div>
+                    
+                    <button id="btn" onclick="runAutomation()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black py-7 rounded-[2rem] uppercase text-sm shadow-2xl shadow-indigo-900/40 active:scale-95 transition-all tracking-widest">Generate</button>
+                </div>
+            </div>
+        </div>
 
-<div class="lg:col-span-5">
+        <div class="lg:col-span-8">
+            <div id="log" class="h-[800px] overflow-y-auto custom-scroll pr-4 space-y-8">
+                <div class="flex flex-col items-center justify-center h-full text-slate-800 border-4 border-dashed border-slate-900 rounded-[4rem]">
+                    <div class="w-20 h-20 bg-slate-900 rounded-full mb-8 flex items-center justify-center">
+                        <svg class="w-10 h-10 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                    </div>
+                    <span class="mono text-xs uppercase tracking-[0.4em]">Sophie Miller Engine Standby</span>
+                </div>
+            </div>
+        </div>
+    </div>
 
-<div class="bg-slate-900 p-8 rounded-3xl">
-
-<h1 class="text-white text-3xl font-black mb-6">
-
-Sophie Engine
-
-</h1>
-
-<div class="text-xs mb-6">
-
-<div class="flex justify-between">
-<span>API</span>
-<span id="api-status">...</span>
-</div>
-
-<div class="flex justify-between">
-<span>AUTH</span>
-<span id="auth-status">...</span>
-</div>
-
-</div>
-
-<input id="count" type="number" value="1"
-class="bg-black p-3 w-full rounded mb-4">
-
-<div class="flex justify-between text-xs mb-4">
-
-<span>Keywords</span>
-<span id="kwTotal">0</span>
-
-</div>
-
-<button id="btn"
-onclick="runAutomation()"
-class="w-full bg-indigo-600 py-4 rounded font-bold">
-
-START
-
-</button>
-
-</div>
-
-</div>
-
-<div id="log"
-class="lg:col-span-7 h-[700px] overflow-y-auto">
-
-</div>
-
-</div>
-
+    <style>
+        .custom-scroll::-webkit-scrollbar { width: 4px; }
+        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
+        .custom-scroll::-webkit-scrollbar-thumb:hover { background: #334155; }
+    </style>
 </body>
 </html>
